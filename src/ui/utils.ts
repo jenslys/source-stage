@@ -34,6 +34,24 @@ export function fitFooterStatusLine(left: string, right: string, width: number):
   return `${leftText} ${rightText}`
 }
 
+export function formatTrackingSummary(upstream: string | null, ahead: number, behind: number): string {
+  if (!upstream) {
+    return "unpublished branch"
+  }
+  if (ahead === 0 && behind === 0) {
+    return "up to date"
+  }
+
+  const parts: string[] = []
+  if (ahead > 0) {
+    parts.push(`${ahead} to push`)
+  }
+  if (behind > 0) {
+    parts.push(`${behind} to pull`)
+  }
+  return parts.join(" | ")
+}
+
 export function buildFileRow(file: ChangedFile, excludedPaths: Set<string>): FileRow {
   const statusSymbol = resolveStatusSymbol(file)
   const statusColor = resolveStatusColor(statusSymbol)

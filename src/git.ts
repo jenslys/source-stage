@@ -21,6 +21,14 @@ export type RepoSnapshot = {
   files: ChangedFile[]
 }
 
+export type CommitHistoryEntry = {
+  hash: string
+  shortHash: string
+  subject: string
+  relativeDate: string
+  author: string
+}
+
 export class GitClient {
   private constructor(
     private readonly root: string,
@@ -129,6 +137,33 @@ export class GitClient {
     await this.runGit(["push", "--set-upstream", "origin", branch])
   }
 
+  async listCommits(limit = 200): Promise<CommitHistoryEntry[]> {
+    const result = await this.runGit([
+      "log",
+      `--max-count=${Math.max(limit, 1)}`,
+      "--date=relative",
+      "--pretty=format:%H%x1f%h%x1f%s%x1f%ar%x1f%an",
+    ], true)
+
+    if (result.code !== 0) {
+      const details = result.stderr || result.stdout
+      throw new Error(details || "Failed to load commit history.")
+    }
+    if (!result.stdout.trim()) return []
+
+    return result.stdout
+      .split("\n")
+      .map((line) => line.split("\u001f"))
+      .map(([hash, shortHash, subject, relativeDate, author]) => ({
+        hash: hash ?? "",
+        shortHash: shortHash ?? "",
+        subject: subject ?? "(no subject)",
+        relativeDate: relativeDate ?? "",
+        author: author ?? "",
+      }))
+      .filter((entry) => entry.hash.length > 0)
+  }
+
   async checkout(branch: string): Promise<void> {
     if (!branch.trim()) {
       throw new Error("Branch name is required.")
@@ -138,6 +173,12 @@ export class GitClient {
 
   async checkoutLeavingChanges(branch: string): Promise<void> {
     await this.runWithStashedChanges(() => this.checkout(branch))
+  }
+
+  async checkoutCommit(commitHash: string): Promise<void> {
+    const hash = commitHash.trim()
+    if (!hash) throw new Error("Commit hash is required.")
+    await this.runGit(["checkout", hash])
   }
 
   async createAndCheckoutBranch(branchName: string): Promise<void> {
@@ -156,6 +197,12 @@ export class GitClient {
 
   async createAndCheckoutBranchLeavingChanges(branchName: string): Promise<void> {
     await this.runWithStashedChanges(() => this.createAndCheckoutBranch(branchName))
+  }
+
+  async revertCommit(commitHash: string): Promise<void> {
+    const hash = commitHash.trim()
+    if (!hash) throw new Error("Commit hash is required.")
+    await this.runGit(["revert", "--no-edit", hash])
   }
 
   async commit(summary: string, description: string, excludedPaths: string[] = []): Promise<void> {

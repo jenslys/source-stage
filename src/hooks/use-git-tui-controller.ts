@@ -3,8 +3,9 @@ import { useCallback, useMemo, useRef, useState } from "react"
 
 import { GitClient, type RepoSnapshot } from "../git"
 import { type FocusTarget, type TopAction } from "../ui/types"
-import { buildFileRow, inferFiletype } from "../ui/utils"
+import { buildFileRow, formatTrackingSummary, inferFiletype } from "../ui/utils"
 import { useBranchDialogController } from "./use-branch-dialog-controller"
+import { useCommitHistoryController } from "./use-commit-history-controller"
 import {
   useFileDiffLoader,
   useGitInitialization,
@@ -145,6 +146,12 @@ export function useGitTuiController(renderer: RendererLike) {
     setFocus,
     branchNameRef,
   })
+  const commitHistory = useCommitHistoryController({
+    git,
+    refreshSnapshot,
+    runTask,
+    setFocus,
+  })
 
   useGitInitialization({ setGit, setFatalError, setStatusMessage })
   useGitSnapshotPolling({ git, refreshSnapshot, setStatusMessage })
@@ -169,6 +176,8 @@ export function useGitTuiController(renderer: RendererLike) {
     commitDialogOpen,
     branchDialogOpen: branchDialog.branchDialogOpen,
     branchDialogMode: branchDialog.branchDialogMode,
+    historyDialogOpen: commitHistory.historyDialogOpen,
+    historyDialogMode: commitHistory.historyMode,
     shortcutsDialogOpen,
     setCommitDialogOpen,
     setFocus,
@@ -181,6 +190,11 @@ export function useGitTuiController(renderer: RendererLike) {
     showBranchDialogList: branchDialog.showBranchDialogList,
     submitBranchSelection: branchDialog.submitBranchSelection,
     submitBranchStrategy: branchDialog.submitBranchStrategy,
+    openHistoryDialog: commitHistory.openHistoryDialog,
+    closeHistoryDialog: commitHistory.closeHistoryDialog,
+    backToHistoryCommitList: commitHistory.backToCommitList,
+    submitHistoryCommitSelection: commitHistory.submitHistoryCommitSelection,
+    submitHistoryAction: commitHistory.submitHistoryAction,
     commitChanges,
     createBranchAndCheckout: branchDialog.createBranchAndCheckout,
     openCommitDialog,
@@ -191,7 +205,7 @@ export function useGitTuiController(renderer: RendererLike) {
   })
 
   const topStatus = snapshot
-    ? `${snapshot.branch}${snapshot.upstream ? ` -> ${snapshot.upstream}` : ""}  ahead:${snapshot.ahead} behind:${snapshot.behind}`
+    ? `${snapshot.branch}${snapshot.upstream ? ` -> ${snapshot.upstream}` : ""}  ${formatTrackingSummary(snapshot.upstream, snapshot.ahead, snapshot.behind)}`
     : "Loading repository state..."
 
   return {
@@ -201,6 +215,7 @@ export function useGitTuiController(renderer: RendererLike) {
     currentBranch: snapshot?.branch ?? "...",
     branchNameRef,
     ...branchDialog,
+    ...commitHistory,
     fileRows,
     fileIndex,
     selectedFilePath,

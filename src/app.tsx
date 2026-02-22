@@ -1,6 +1,7 @@
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 
 import { BranchDialog } from "./ui/components/branch-dialog"
+import { CommitHistoryDialog } from "./ui/components/commit-history-dialog"
 import { useGitTuiController } from "./hooks/use-git-tui-controller"
 import { CommitDialog } from "./ui/components/commit-dialog"
 import { DiffWorkspace } from "./ui/components/diff-workspace"
@@ -70,6 +71,20 @@ export function App() {
         summaryRef={controller.summaryRef}
         descriptionRef={controller.descriptionRef}
         onSummaryInput={controller.onSummaryInput}
+      />
+
+      <CommitHistoryDialog
+        open={controller.historyDialogOpen}
+        mode={controller.historyMode}
+        focus={controller.focus}
+        currentBranch={controller.currentBranch}
+        commitOptions={controller.commitOptions}
+        commitIndex={controller.commitIndex}
+        onCommitChange={controller.onCommitIndexChange}
+        actionOptions={controller.actionOptions}
+        actionIndex={controller.actionIndex}
+        onActionChange={controller.onActionIndexChange}
+        selectedCommitTitle={controller.selectedCommitTitle}
       />
 
       <ShortcutsDialog open={controller.shortcutsDialogOpen} />

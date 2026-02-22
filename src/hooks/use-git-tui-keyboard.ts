@@ -8,6 +8,8 @@ type UseGitTuiKeyboardParams = {
   commitDialogOpen: boolean
   branchDialogOpen: boolean
   branchDialogMode: "select" | "create" | "confirm"
+  historyDialogOpen: boolean
+  historyDialogMode: "list" | "action"
   shortcutsDialogOpen: boolean
   setCommitDialogOpen: Dispatch<SetStateAction<boolean>>
   setFocus: Dispatch<SetStateAction<FocusTarget>>
@@ -20,6 +22,11 @@ type UseGitTuiKeyboardParams = {
   showBranchDialogList: () => void
   submitBranchSelection: () => Promise<void>
   submitBranchStrategy: () => Promise<void>
+  openHistoryDialog: () => Promise<void>
+  closeHistoryDialog: () => void
+  backToHistoryCommitList: () => void
+  submitHistoryCommitSelection: () => Promise<void>
+  submitHistoryAction: () => Promise<void>
   commitChanges: () => Promise<void>
   createBranchAndCheckout: () => Promise<void>
   openCommitDialog: () => void
@@ -34,6 +41,8 @@ export function useGitTuiKeyboard({
   commitDialogOpen,
   branchDialogOpen,
   branchDialogMode,
+  historyDialogOpen,
+  historyDialogMode,
   shortcutsDialogOpen,
   setCommitDialogOpen,
   setFocus,
@@ -46,6 +55,11 @@ export function useGitTuiKeyboard({
   showBranchDialogList,
   submitBranchSelection,
   submitBranchStrategy,
+  openHistoryDialog,
+  closeHistoryDialog,
+  backToHistoryCommitList,
+  submitHistoryCommitSelection,
+  submitHistoryAction,
   commitChanges,
   createBranchAndCheckout,
   openCommitDialog,
@@ -58,9 +72,9 @@ export function useGitTuiKeyboard({
     const isHelpKey = key.name === "?" || ((key.name === "/" || key.name === "slash") && key.shift)
     const isSpaceKey = key.name === "space" || key.name === " "
     const isEnter = key.name === "return" || key.name === "linefeed"
-    const isDialogOpen = commitDialogOpen || branchDialogOpen || shortcutsDialogOpen
+    const isDialogOpen = commitDialogOpen || branchDialogOpen || historyDialogOpen || shortcutsDialogOpen
 
-    if (!commitDialogOpen && !branchDialogOpen && isHelpKey) {
+    if (!commitDialogOpen && !branchDialogOpen && !historyDialogOpen && isHelpKey) {
       key.preventDefault()
       key.stopPropagation()
       if (shortcutsDialogOpen) {
@@ -76,6 +90,17 @@ export function useGitTuiKeyboard({
         key.preventDefault()
         key.stopPropagation()
         closeShortcutsDialog()
+      }
+      return
+    }
+
+    if (historyDialogOpen && isEnter) {
+      key.preventDefault()
+      key.stopPropagation()
+      if (historyDialogMode === "action") {
+        void submitHistoryAction()
+      } else {
+        void submitHistoryCommitSelection()
       }
       return
     }
@@ -101,6 +126,14 @@ export function useGitTuiKeyboard({
     }
 
     if (key.name === "escape") {
+      if (historyDialogOpen) {
+        if (historyDialogMode === "action") {
+          backToHistoryCommitList()
+        } else {
+          closeHistoryDialog()
+        }
+        return
+      }
       if (branchDialogOpen) {
         if (branchDialogMode === "select") {
           closeBranchDialog()
@@ -123,6 +156,10 @@ export function useGitTuiKeyboard({
       key.stopPropagation()
       if (branchDialogOpen) {
         setFocus(branchDialogMode === "create" ? "branch-create" : "branch-dialog-list")
+        return
+      }
+      if (historyDialogOpen) {
+        setFocus(historyDialogMode === "action" ? "history-actions" : "history-commits")
         return
       }
       const order = commitDialogOpen ? COMMIT_FOCUS_ORDER : MAIN_FOCUS_ORDER
@@ -149,6 +186,13 @@ export function useGitTuiKeyboard({
       return
     }
 
+    if (!isDialogOpen && key.name === "h") {
+      key.preventDefault()
+      key.stopPropagation()
+      void openHistoryDialog()
+      return
+    }
+
     if (!isDialogOpen && focus === "files" && fileCount > 0 && isSpaceKey) {
       key.preventDefault()
       key.stopPropagation()
@@ -156,38 +200,38 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!isDialogOpen && focus === "files" && fileCount > 0 && (key.name === "up" || key.name === "k")) {
+    if (!isDialogOpen && focus === "files" && fileCount > 0 && key.name === "up") {
       key.preventDefault()
       key.stopPropagation()
       moveToPreviousFile()
       return
     }
-    if (!isDialogOpen && focus === "files" && fileCount > 0 && (key.name === "down" || key.name === "j")) {
+    if (!isDialogOpen && focus === "files" && fileCount > 0 && key.name === "down") {
       key.preventDefault()
       key.stopPropagation()
       moveToNextFile()
       return
     }
 
-    if (key.ctrl && key.name === "r") {
+    if (!isDialogOpen && key.ctrl && key.name === "r") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("refresh")
       return
     }
-    if (key.ctrl && key.name === "f") {
+    if (!isDialogOpen && key.ctrl && key.name === "f") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("fetch")
       return
     }
-    if (key.ctrl && key.name === "l") {
+    if (!isDialogOpen && key.ctrl && key.name === "l") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("pull")
       return
     }
-    if (key.ctrl && key.name === "p") {
+    if (!isDialogOpen && key.ctrl && key.name === "p") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("push")

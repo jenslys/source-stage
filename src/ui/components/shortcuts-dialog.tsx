@@ -5,8 +5,9 @@ type ShortcutsDialogProps = {
 const SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
   ["?", "show/hide shortcuts"],
   ["b", "change branch"],
+  ["h", "open commit history"],
   ["space", "include/exclude file in commit"],
-  ["j / k", "move file selection"],
+  ["↑ / ↓", "move file selection"],
   ["r", "refresh"],
   ["f", "fetch"],
   ["l", "pull"],
