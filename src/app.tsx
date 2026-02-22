@@ -94,7 +94,7 @@ export function App({ config }: AppProps) {
         selectedCommitTitle={controller.selectedCommitTitle}
       />
 
-      <ShortcutsDialog open={controller.shortcutsDialogOpen} />
+      <ShortcutsDialog open={controller.shortcutsDialogOpen} aiCommitEnabled={config.ai.enabled} />
     </box>
   )
 }

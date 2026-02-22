@@ -1,6 +1,7 @@
 import type { InputRenderable, TextareaRenderable } from "@opentui/core"
 import { useCallback, useMemo, useRef, useState } from "react"
 
+import { generateAiCommitSummary } from "../ai-commit"
 import type { StageConfig } from "../config"
 import { GitClient, type RepoSnapshot } from "../git"
 import { type FocusTarget, type TopAction } from "../ui/types"
@@ -66,6 +67,14 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     setSnapshot(next)
   }, [git])
 
+  const getIncludedPaths = useCallback(
+    () =>
+      (snapshot?.files ?? [])
+        .map((file) => file.path)
+        .filter((path) => !excludedPaths.has(path)),
+    [excludedPaths, snapshot],
+  )
+
   const runTask = useCallback(
     async (label: string, task: () => Promise<void>): Promise<boolean> => {
       if (isBusy) return false
@@ -86,17 +95,57 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     [isBusy],
   )
 
+  const openCommitDialog = useCallback(() => {
+    if (!git) {
+      setStatusMessage("Repository not ready.")
+      return
+    }
+    if ((snapshot?.files.length ?? 0) === 0) {
+      setStatusMessage("No working changes to commit.")
+      return
+    }
+    if (config.ai.enabled) {
+      const includedPaths = getIncludedPaths()
+      if (includedPaths.length === 0) {
+        setStatusMessage("No files selected for commit.")
+        return
+      }
+
+      void (async () => {
+        const succeeded = await runTask("AI COMMIT", async () => {
+          const summary = await generateAiCommitSummary({
+            git,
+            files: snapshot?.files ?? [],
+            selectedPaths: includedPaths,
+            aiConfig: config.ai,
+          })
+          await git.commit(summary, "", Array.from(excludedPaths), includedPaths)
+          setStatusMessage(`Committed: ${summary}`)
+          setSummary("")
+          setDescriptionRenderKey((value) => value + 1)
+          setCommitDialogOpen(false)
+          setFocus("files")
+          setExcludedPaths(new Set())
+          await refreshSnapshot()
+        })
+
+        if (!succeeded) {
+          setCommitDialogOpen(true)
+          setFocus("commit-summary")
+        }
+      })()
+      return
+    }
+    setCommitDialogOpen(true)
+    setFocus("commit-summary")
+  }, [config.ai, excludedPaths, getIncludedPaths, git, refreshSnapshot, runTask, snapshot])
+
   const runTopAction = useCallback(
     async (action: TopAction): Promise<void> => {
       if (!git) return
 
       if (action === "commit") {
-        if ((snapshot?.files.length ?? 0) === 0) {
-          setStatusMessage("No working changes to commit.")
-          return
-        }
-        setCommitDialogOpen(true)
-        setFocus("commit-summary")
+        openCommitDialog()
         return
       }
 
@@ -119,25 +168,14 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
         await refreshSnapshot()
       })
     },
-    [git, refreshSnapshot, runTask, snapshot],
+    [git, openCommitDialog, refreshSnapshot, runTask],
   )
-
-  const openCommitDialog = useCallback(() => {
-    if ((snapshot?.files.length ?? 0) === 0) {
-      setStatusMessage("No working changes to commit.")
-      return
-    }
-    setCommitDialogOpen(true)
-    setFocus("commit-summary")
-  }, [snapshot])
 
   const commitChanges = useCallback(async (): Promise<void> => {
     if (!git) return
     const effectiveSummary = summaryRef.current?.value ?? summary
     const description = descriptionRef.current?.plainText ?? ""
-    const includedPaths = (snapshot?.files ?? [])
-      .map((file) => file.path)
-      .filter((path) => !excludedPaths.has(path))
+    const includedPaths = getIncludedPaths()
 
     await runTask("COMMIT", async () => {
       await git.commit(effectiveSummary, description, Array.from(excludedPaths), includedPaths)
@@ -148,7 +186,7 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
       setExcludedPaths(new Set())
       await refreshSnapshot()
     })
-  }, [excludedPaths, git, refreshSnapshot, runTask, snapshot, summary])
+  }, [excludedPaths, getIncludedPaths, git, refreshSnapshot, runTask, summary])
 
   const branchDialog = useBranchDialogController({
     git,

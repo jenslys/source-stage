@@ -1,8 +1,9 @@
 type ShortcutsDialogProps = {
   open: boolean
+  aiCommitEnabled: boolean
 }
 
-const SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
+const BASE_SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
   ["?", "show/hide shortcuts"],
   ["b", "change branch"],
   ["h", "open commit history"],
@@ -12,12 +13,14 @@ const SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
   ["f", "fetch"],
   ["l", "pull"],
   ["p", "push"],
-  ["c", "open commit dialog"],
-  ["esc", "close dialog or exit"],
 ]
 
-export function ShortcutsDialog({ open }: ShortcutsDialogProps) {
+export function ShortcutsDialog({ open, aiCommitEnabled }: ShortcutsDialogProps) {
   if (!open) return null
+  const commitRow: readonly [string, string] = aiCommitEnabled
+    ? ["c", "generate AI commit"]
+    : ["c", "open commit dialog"]
+  const rows = [...BASE_SHORTCUT_ROWS, commitRow, ["esc", "close dialog or exit"]] as const
 
   return (
     <box
@@ -38,7 +41,7 @@ export function ShortcutsDialog({ open }: ShortcutsDialogProps) {
         <text fg="#f5f5f5">shortcuts</text>
         <text fg="#525252">press ? or esc to close</text>
         <box style={{ flexDirection: "column", marginTop: 1 }}>
-          {SHORTCUT_ROWS.map(([key, description]) => (
+          {rows.map(([key, description]) => (
             <box key={key} style={{ flexDirection: "row", gap: 2 }}>
               <text fg="#9ca3af">{key.padEnd(8, " ")}</text>
               <text fg="#f3f4f6">{description}</text>

@@ -13,6 +13,15 @@ export type StageConfig = {
   git: {
     autoStageOnCommit: boolean
   }
+  ai: {
+    enabled: boolean
+    provider: "cerebras"
+    apiKey: string
+    model: string
+    reasoningEffort: "low" | "medium" | "high"
+    maxFiles: number
+    maxCharsPerFile: number
+  }
 }
 
 export type ResolvedStageConfig = {
@@ -31,6 +40,15 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
   },
   git: {
     autoStageOnCommit: true,
+  },
+  ai: {
+    enabled: false,
+    provider: "cerebras",
+    apiKey: "",
+    model: "gpt-oss-120b",
+    reasoningEffort: "low",
+    maxFiles: 32,
+    maxCharsPerFile: 4000,
   },
 }
 
@@ -91,7 +109,7 @@ function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
   }
 
   const root = asRecord(parsed, `Config root in ${sourcePath}`)
-  assertNoUnknownKeys(root, ["ui", "history", "git"], `Config root in ${sourcePath}`)
+  assertNoUnknownKeys(root, ["ui", "history", "git", "ai"], `Config root in ${sourcePath}`)
 
   const config = cloneConfig(DEFAULT_STAGE_CONFIG)
 
@@ -137,6 +155,63 @@ function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
     }
   }
 
+  if (root.ai !== undefined) {
+    const ai = asRecord(root.ai, `[ai] in ${sourcePath}`)
+    assertNoUnknownKeys(ai, ["enabled", "provider", "api_key", "model", "reasoning_effort", "max_files", "max_chars_per_file"], `[ai] in ${sourcePath}`)
+
+    if (ai.enabled !== undefined) {
+      config.ai.enabled = asBoolean(ai.enabled, `ai.enabled in ${sourcePath}`)
+    }
+
+    if (ai.provider !== undefined) {
+      if (ai.provider !== "cerebras") {
+        throw new Error(`Invalid value for ai.provider in ${sourcePath}. Expected "cerebras".`)
+      }
+      config.ai.provider = ai.provider
+    }
+
+    if (ai.api_key !== undefined) {
+      if (typeof ai.api_key !== "string") {
+        throw new Error(`ai.api_key in ${sourcePath} must be a string.`)
+      }
+      config.ai.apiKey = ai.api_key.trim()
+    }
+
+    if (ai.model !== undefined) {
+      if (typeof ai.model !== "string" || !ai.model.trim()) {
+        throw new Error(`ai.model in ${sourcePath} must be a non-empty string.`)
+      }
+      config.ai.model = ai.model.trim()
+    }
+
+    if (ai.reasoning_effort !== undefined) {
+      if (ai.reasoning_effort !== "low" && ai.reasoning_effort !== "medium" && ai.reasoning_effort !== "high") {
+        throw new Error(`Invalid value for ai.reasoning_effort in ${sourcePath}. Expected "low", "medium", or "high".`)
+      }
+      config.ai.reasoningEffort = ai.reasoning_effort
+    }
+
+    if (ai.max_files !== undefined) {
+      const maxFiles = asInteger(ai.max_files, `ai.max_files in ${sourcePath}`)
+      if (maxFiles <= 0) {
+        throw new Error(`ai.max_files in ${sourcePath} must be greater than 0.`)
+      }
+      config.ai.maxFiles = maxFiles
+    }
+
+    if (ai.max_chars_per_file !== undefined) {
+      const maxCharsPerFile = asInteger(ai.max_chars_per_file, `ai.max_chars_per_file in ${sourcePath}`)
+      if (maxCharsPerFile <= 0) {
+        throw new Error(`ai.max_chars_per_file in ${sourcePath} must be greater than 0.`)
+      }
+      config.ai.maxCharsPerFile = maxCharsPerFile
+    }
+  }
+
+  if (config.ai.enabled && !config.ai.apiKey) {
+    throw new Error(`ai.enabled is true in ${sourcePath}, but ai.api_key is empty.`)
+  }
+
   return config
 }
 
@@ -152,6 +227,15 @@ function cloneConfig(config: StageConfig): StageConfig {
     },
     git: {
       autoStageOnCommit: config.git.autoStageOnCommit,
+    },
+    ai: {
+      enabled: config.ai.enabled,
+      provider: config.ai.provider,
+      apiKey: config.ai.apiKey,
+      model: config.ai.model,
+      reasoningEffort: config.ai.reasoningEffort,
+      maxFiles: config.ai.maxFiles,
+      maxCharsPerFile: config.ai.maxCharsPerFile,
     },
   }
 }
