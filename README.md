@@ -48,14 +48,14 @@ stage --dev      # use local checkout at STAGE_DEV_PATH
 
 Config file path:
 
-- `${XDG_CONFIG_HOME:-~/.config}/stage-manager/config.toml`
+- `${XDG_CONFIG_HOME:-~/.config}/stage/config.toml`
 
 Stage creates this file on first launch.
 
 Optional overrides:
 
 - `STAGE_CONFIG=/path/to/config.toml`
-- `./.stage-manager.toml` (repo-local)
+- `./.stage.toml` (repo-local)
 
 Theme behavior:
 

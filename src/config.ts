@@ -71,7 +71,7 @@ export async function loadStageConfig(cwd: string): Promise<ResolvedStageConfig>
     }
   }
 
-  const localPath = resolve(cwd, ".stage-manager.toml")
+  const localPath = resolve(cwd, ".stage.toml")
   const localFile = Bun.file(localPath)
   if (await localFile.exists()) {
     const raw = await localFile.text()
@@ -102,7 +102,7 @@ export async function loadStageConfig(cwd: string): Promise<ResolvedStageConfig>
 export function getUserConfigPath(): string {
   const xdg = process.env.XDG_CONFIG_HOME?.trim()
   const configRoot = xdg ? xdg : join(homedir(), ".config")
-  return join(configRoot, "stage-manager", "config.toml")
+  return join(configRoot, "stage", "config.toml")
 }
 
 function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
