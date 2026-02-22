@@ -129,6 +129,8 @@ export class GitClient {
       throw new Error("Commit summary is required.")
     }
 
+    await this.runGit(["add", "-A"])
+
     const args = ["commit", "-m", title]
     if (description.trim()) {
       args.push("-m", description.trim())
@@ -139,7 +141,8 @@ export class GitClient {
   private async runGit(args: string[], allowFailure = false): Promise<GitCommandResult> {
     const result = await runGitRaw(this.root, args)
     if (result.code !== 0 && !allowFailure) {
-      throw new Error(result.stderr || `git ${args.join(" ")} failed with code ${result.code}.`)
+      const details = result.stderr || result.stdout
+      throw new Error(details || `git ${args.join(" ")} failed with code ${result.code}.`)
     }
     return result
   }

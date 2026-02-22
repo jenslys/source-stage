@@ -1,23 +1,19 @@
-import type { SelectOption, TabSelectOption, TextareaRenderable } from "@opentui/core"
-import { useKeyboard, useRenderer } from "@opentui/react"
+import { RGBA, SyntaxStyle, type InputRenderable, type SelectOption, type TextareaRenderable } from "@opentui/core"
+import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { GitClient, type RepoSnapshot } from "./git"
 
-type FocusTarget = "actions" | "branch" | "files" | "summary" | "description"
-type TopAction = "refresh" | "fetch" | "pull" | "push"
+type FocusTarget = "branch" | "files" | "commit-summary" | "commit-description"
+type TopAction = "refresh" | "fetch" | "pull" | "push" | "commit"
 
-const FOCUS_ORDER: FocusTarget[] = ["actions", "branch", "files", "summary", "description"]
-
-const ACTION_OPTIONS: TabSelectOption[] = [
-  { name: "Refresh", description: "Reload git status", value: "refresh" satisfies TopAction },
-  { name: "Fetch", description: "Fetch origin", value: "fetch" satisfies TopAction },
-  { name: "Pull", description: "Pull --ff-only", value: "pull" satisfies TopAction },
-  { name: "Push", description: "Push current branch", value: "push" satisfies TopAction },
-]
+const MAIN_FOCUS_ORDER: FocusTarget[] = ["branch", "files"]
+const COMMIT_FOCUS_ORDER: FocusTarget[] = ["commit-summary", "commit-description"]
 
 export function App() {
   const renderer = useRenderer()
+  const { width: terminalWidth } = useTerminalDimensions()
+  const summaryRef = useRef<InputRenderable>(null)
   const descriptionRef = useRef<TextareaRenderable>(null)
 
   const [git, setGit] = useState<GitClient | null>(null)
@@ -25,18 +21,34 @@ export function App() {
   const [fatalError, setFatalError] = useState<string | null>(null)
 
   const [focus, setFocus] = useState<FocusTarget>("files")
-  const [actionIndex, setActionIndex] = useState(0)
   const [branchIndex, setBranchIndex] = useState(0)
   const [fileIndex, setFileIndex] = useState(0)
 
   const [summary, setSummary] = useState("")
   const [descriptionRenderKey, setDescriptionRenderKey] = useState(0)
   const [diffText, setDiffText] = useState("# No file selected")
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false)
 
   const [busy, setBusy] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState("Initializing...")
 
   const isBusy = busy !== null
+  const diffSyntaxStyle = useMemo(
+    () =>
+      SyntaxStyle.fromStyles({
+        keyword: { fg: RGBA.fromHex("#c792ea"), italic: true },
+        string: { fg: RGBA.fromHex("#c3e88d") },
+        comment: { fg: RGBA.fromHex("#6a737d"), italic: true },
+        number: { fg: RGBA.fromHex("#f78c6c") },
+        function: { fg: RGBA.fromHex("#82aaff") },
+        type: { fg: RGBA.fromHex("#ffcb6b") },
+        variable: { fg: RGBA.fromHex("#f07178") },
+        operator: { fg: RGBA.fromHex("#89ddff") },
+        punctuation: { fg: RGBA.fromHex("#cdd6f4") },
+        default: { fg: RGBA.fromHex("#e6edf3") },
+      }),
+    [],
+  )
 
   const branchOptions = useMemo<SelectOption[]>(
     () =>
@@ -51,8 +63,8 @@ export function App() {
   const fileOptions = useMemo<SelectOption[]>(
     () =>
       (snapshot?.files ?? []).map((file) => ({
-        name: file.path,
-        description: `${file.indexStatus}${file.worktreeStatus} ${file.statusLabel}`,
+        name: `${file.indexStatus}${file.worktreeStatus} ${file.path}`,
+        description: file.statusLabel,
         value: file.path,
       })),
     [snapshot],
@@ -89,6 +101,11 @@ export function App() {
       if (!git) return
 
       await runTask(action.toUpperCase(), async () => {
+        if (action === "commit") {
+          setCommitDialogOpen(true)
+          setFocus("commit-summary")
+          return
+        }
         if (action === "refresh") {
           await refreshSnapshot()
           return
@@ -112,12 +129,15 @@ export function App() {
 
   const commitChanges = useCallback(async (): Promise<void> => {
     if (!git) return
+    const effectiveSummary = summaryRef.current?.value ?? summary
     const description = descriptionRef.current?.plainText ?? ""
 
     await runTask("COMMIT", async () => {
-      await git.commit(summary, description)
+      await git.commit(effectiveSummary, description)
       setSummary("")
       setDescriptionRenderKey((value) => value + 1)
+      setCommitDialogOpen(false)
+      setFocus("files")
       await refreshSnapshot()
     })
   }, [git, refreshSnapshot, runTask, summary])
@@ -214,42 +234,107 @@ export function App() {
   }, [git, selectedFile])
 
   useKeyboard((key) => {
+    const isEnter = key.name === "return" || key.name === "linefeed"
+
+    if (commitDialogOpen && isEnter) {
+      key.preventDefault()
+      key.stopPropagation()
+      void commitChanges()
+      return
+    }
+
     if (key.name === "escape") {
+      if (commitDialogOpen) {
+        setCommitDialogOpen(false)
+        setFocus("files")
+        return
+      }
       renderer.destroy()
       return
     }
 
     if (key.name === "tab") {
+      key.preventDefault()
+      key.stopPropagation()
+      const order = commitDialogOpen ? COMMIT_FOCUS_ORDER : MAIN_FOCUS_ORDER
       setFocus((current) => {
-        const currentIndex = FOCUS_ORDER.findIndex((item) => item === current)
-        if (currentIndex < 0) return "files"
+        const currentIndex = order.findIndex((item) => item === current)
+        if (currentIndex < 0) return order[0] ?? "files"
 
         const nextIndex = key.shift
-          ? (currentIndex - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length
-          : (currentIndex + 1) % FOCUS_ORDER.length
-        return FOCUS_ORDER[nextIndex] ?? "files"
+          ? (currentIndex - 1 + order.length) % order.length
+          : (currentIndex + 1) % order.length
+        return order[nextIndex] ?? "files"
       })
       return
     }
 
+    if (!commitDialogOpen && key.name === "c") {
+      key.preventDefault()
+      key.stopPropagation()
+      setCommitDialogOpen(true)
+      setFocus("commit-summary")
+      return
+    }
+
     if (key.ctrl && key.name === "r") {
+      key.preventDefault()
+      key.stopPropagation()
       void runTopAction("refresh")
       return
     }
     if (key.ctrl && key.name === "f") {
+      key.preventDefault()
+      key.stopPropagation()
       void runTopAction("fetch")
       return
     }
     if (key.ctrl && key.name === "l") {
+      key.preventDefault()
+      key.stopPropagation()
       void runTopAction("pull")
       return
     }
     if (key.ctrl && key.name === "p") {
+      key.preventDefault()
+      key.stopPropagation()
+      void runTopAction("push")
+      return
+    }
+
+    if (!commitDialogOpen && key.name === "r") {
+      key.preventDefault()
+      key.stopPropagation()
+      void runTopAction("refresh")
+      return
+    }
+    if (!commitDialogOpen && key.name === "f") {
+      key.preventDefault()
+      key.stopPropagation()
+      void runTopAction("fetch")
+      return
+    }
+    if (!commitDialogOpen && key.name === "l") {
+      key.preventDefault()
+      key.stopPropagation()
+      void runTopAction("pull")
+      return
+    }
+    if (!commitDialogOpen && key.name === "p") {
+      key.preventDefault()
+      key.stopPropagation()
       void runTopAction("push")
       return
     }
     if (key.ctrl && key.name === "return") {
-      void commitChanges()
+      key.preventDefault()
+      key.stopPropagation()
+      if (commitDialogOpen) {
+        void commitChanges()
+      } else {
+        setCommitDialogOpen(true)
+        setFocus("commit-summary")
+      }
     }
   })
 
@@ -266,15 +351,6 @@ export function App() {
     [git, refreshSnapshot, runTask, snapshot],
   )
 
-  const onActionSelect = useCallback(
-    (index: number, option: TabSelectOption | null) => {
-      setActionIndex(index)
-      if (!option?.value) return
-      void runTopAction(option.value as TopAction)
-    },
-    [runTopAction],
-  )
-
   const onFileSelect = useCallback((index: number) => {
     setFileIndex(index)
   }, [])
@@ -282,6 +358,12 @@ export function App() {
   const topStatus = snapshot
     ? `${snapshot.branch}${snapshot.upstream ? ` -> ${snapshot.upstream}` : ""}  ahead:${snapshot.ahead} behind:${snapshot.behind}`
     : "Loading repository state..."
+  const footerInnerWidth = Math.max((terminalWidth ?? 0) - 2, 0)
+  const footerStatusLine = fitFooterLine(statusMessage, footerInnerWidth)
+  const footerHintsLine = fitFooterLine(
+    `${topStatus} | tab focus | c commit | r refresh | f fetch | l pull | p push | enter commit | esc exit`,
+    footerInnerWidth,
+  )
 
   const diffFiletype = inferFiletype(selectedFile?.path)
 
@@ -291,79 +373,132 @@ export function App() {
         width: "100%",
         height: "100%",
         flexDirection: "column",
-        backgroundColor: "#0d1117",
+        backgroundColor: "#000000",
       }}
     >
-      <box title="Git Controls" style={{ border: true, height: 6, flexDirection: "row", gap: 1, padding: 1 }}>
-        <box title="Branch" style={{ border: true, width: 40 }}>
+      <box style={{ height: 3, flexDirection: "row", alignItems: "center", paddingLeft: 1, paddingRight: 1, gap: 1 }}>
+        <text fg="#737373">branch</text>
+        <box style={{ width: 34, height: 1 }}>
           <select
+            style={{ width: "100%", height: "100%", backgroundColor: "#000000", textColor: "#9ca3af" }}
             options={branchOptions}
             selectedIndex={branchIndex}
             showDescription={false}
             focused={focus === "branch"}
+            selectedBackgroundColor="#111111"
+            selectedTextColor="#ffffff"
+            focusedBackgroundColor="#000000"
+            focusedTextColor="#f3f4f6"
             onChange={setBranchIndex}
             onSelect={onBranchSelect}
           />
         </box>
-        <box title="Actions" style={{ border: true, flexGrow: 1 }}>
-          <tab-select
-            options={ACTION_OPTIONS}
-            selectedIndex={actionIndex}
-            showDescription={false}
-            focused={focus === "actions"}
-            onChange={setActionIndex}
-            onSelect={onActionSelect}
-          />
+        <box style={{ flexGrow: 1, justifyContent: "center" }}>
+          <text fg="#525252">[r] refresh   [f] fetch   [l] pull   [p] push   [c] commit</text>
         </box>
       </box>
 
-      <box style={{ flexDirection: "row", flexGrow: 1, gap: 1, padding: 1 }}>
-        <box title={`Changes (${fileOptions.length})`} style={{ border: true, width: 45 }}>
+      <box style={{ flexDirection: "row", flexGrow: 1, gap: 1, paddingLeft: 1, paddingRight: 1 }}>
+        <box style={{ width: 42, flexDirection: "column" }}>
+          <text fg="#737373">changes ({fileOptions.length})</text>
           <select
+            style={{ width: "100%", height: "100%", backgroundColor: "#000000", textColor: "#9ca3af" }}
             options={fileOptions}
             selectedIndex={fileIndex}
             focused={focus === "files"}
+            selectedBackgroundColor="#101010"
+            selectedTextColor="#f9fafb"
+            focusedBackgroundColor="#000000"
+            focusedTextColor="#f3f4f6"
             onChange={onFileSelect}
             onSelect={onFileSelect}
-            showDescription={true}
+            showDescription={false}
             wrapSelection={true}
           />
         </box>
-        <box title={selectedFile ? `Diff: ${selectedFile.path}` : "Diff"} style={{ border: true, flexGrow: 1 }}>
-          <diff diff={diffText} view="unified" filetype={diffFiletype} showLineNumbers={true} wrapMode="none" />
+        <box style={{ flexGrow: 1, flexDirection: "column" }}>
+          <text fg="#737373">{selectedFile ? selectedFile.path : "no file selected"}</text>
+          <diff
+            diff={diffText}
+            view="split"
+            filetype={diffFiletype}
+            syntaxStyle={diffSyntaxStyle}
+            showLineNumbers={true}
+            wrapMode="none"
+            lineNumberFg="#525252"
+            lineNumberBg="#000000"
+            contextBg="#000000"
+            contextContentBg="#000000"
+            addedBg="#06180c"
+            removedBg="#220909"
+            addedContentBg="#06180c"
+            removedContentBg="#220909"
+            addedLineNumberBg="#0a2212"
+            removedLineNumberBg="#2c1010"
+            fg="#e5e7eb"
+            style={{ width: "100%", height: "100%" }}
+          />
         </box>
       </box>
 
-      <box title="Commit" style={{ border: true, height: 9, flexDirection: "column", gap: 1, padding: 1 }}>
-        <box title="Summary" style={{ border: true, height: 3 }}>
-          <input
-            value={summary}
-            onInput={setSummary}
-            onSubmit={() => {
-              void commitChanges()
+      <box style={{ height: 2, flexDirection: "column", paddingLeft: 1, paddingRight: 1 }}>
+        <text fg={fatalError ? "#ff7b72" : isBusy ? "#d29922" : "#58a6ff"}>{footerStatusLine}</text>
+        <text fg="#4b5563">{footerHintsLine}</text>
+      </box>
+
+      {commitDialogOpen ? (
+        <box
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "#000000",
+            paddingLeft: 6,
+            paddingRight: 6,
+            paddingTop: 4,
+            paddingBottom: 3,
+            gap: 1,
+          }}
+        >
+          <text fg="#f5f5f5">commit changes</text>
+          <text fg="#525252">enter to commit | esc to cancel</text>
+          <box
+            style={{
+              width: "100%",
+              height: 3,
+              flexDirection: "column",
+              marginTop: 1,
             }}
-            placeholder="Commit summary"
-            focused={focus === "summary"}
-          />
+          >
+            <input
+              ref={summaryRef}
+              value={summary}
+              onInput={setSummary}
+              placeholder="summary (required)"
+              focused={focus === "commit-summary"}
+              backgroundColor="#000000"
+              textColor="#f3f4f6"
+              focusedBackgroundColor="#000000"
+              focusedTextColor="#f9fafb"
+            />
+          </box>
+          <box style={{ width: "100%", flexGrow: 1 }}>
+            <textarea
+              key={descriptionRenderKey}
+              ref={descriptionRef}
+              initialValue=""
+              placeholder="description (optional)"
+              focused={focus === "commit-description"}
+              backgroundColor="#000000"
+              textColor="#d1d5db"
+              focusedBackgroundColor="#000000"
+              focusedTextColor="#f3f4f6"
+            />
+          </box>
         </box>
-        <box title="Description" style={{ border: true, height: 3 }}>
-          <textarea
-            key={descriptionRenderKey}
-            ref={descriptionRef}
-            initialValue=""
-            placeholder="Optional commit description"
-            focused={focus === "description"}
-          />
-        </box>
-      </box>
-
-      <box style={{ height: 3, border: true, padding: 1, flexDirection: "column" }}>
-        <text fg={fatalError ? "#ff7b72" : isBusy ? "#d29922" : "#58a6ff"}>{statusMessage}</text>
-        <text fg="#8b949e">
-          {topStatus} | TAB focus | CTRL+R refresh | CTRL+F fetch | CTRL+L pull | CTRL+P push | CTRL+ENTER commit |
-          ESC exit
-        </text>
-      </box>
+      ) : null}
     </box>
   )
 }
@@ -372,5 +507,19 @@ function inferFiletype(path: string | undefined): string | undefined {
   if (!path) return undefined
   const extension = path.includes(".") ? path.split(".").pop() : undefined
   if (!extension) return undefined
-  return extension.toLowerCase()
+  const normalized = extension.toLowerCase()
+
+  if (normalized === "ts" || normalized === "tsx") return "typescript"
+  if (normalized === "js" || normalized === "jsx" || normalized === "mjs" || normalized === "cjs") return "javascript"
+  if (normalized === "md" || normalized === "mdx") return "markdown"
+  if (normalized === "yml") return "yaml"
+  if (normalized === "sh" || normalized === "zsh") return "bash"
+
+  return normalized
+}
+
+function fitFooterLine(text: string, width: number): string {
+  if (width <= 0) return text
+  if (text.length > width) return text.slice(0, width)
+  return text.padEnd(width, " ")
 }
