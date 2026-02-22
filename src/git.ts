@@ -270,7 +270,7 @@ export class GitClient {
   }
 
   private async runWithStashedChanges(task: () => Promise<void>): Promise<void> {
-    const marker = `source-stage-leave-${Date.now()}`
+    const marker = `stage-tui-leave-${Date.now()}`
     const stashResult = await this.runGit(["stash", "push", "-u", "-m", marker], true)
     if (stashResult.code !== 0) {
       const details = stashResult.stderr || stashResult.stdout

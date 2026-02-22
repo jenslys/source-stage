@@ -19,7 +19,7 @@ function resolveDevEntry(): string {
   }
 
   throw new Error(
-    "stage --dev requires either STAGE_DEV_PATH=/absolute/path/to/source-stage or running from the source-stage repo root.",
+    "stage --dev requires either STAGE_DEV_PATH=/absolute/path/to/stage-tui or running from the stage-tui repo root.",
   )
 }
 

@@ -1,10 +1,10 @@
-# Source Stage [Beta]
+# Stage [Beta]
 
 A calm, opinionated Git TUI.
 
 Inspired by GitHub Desktop. Built with OpenTUI.
 
-Source Stage keeps the core Git loop focused: review changes, stage with intent, commit clearly, and move on.
+Stage keeps the core Git loop focused: review changes, stage with intent, commit clearly, and move on.
 
 What it does:
 
@@ -21,7 +21,7 @@ Prerequisite: [Bun](https://bun.sh)
 Install:
 
 ```bash
-bun add -g source-stage
+bun add -g stage-tui
 ```
 
 Run:
@@ -33,7 +33,7 @@ stage
 Debug with your local checkout from any repo:
 
 ```bash
-export STAGE_DEV_PATH=/absolute/path/to/source-stage
+export STAGE_DEV_PATH=/absolute/path/to/stage-tui
 stage --dev
 ```
 
@@ -50,7 +50,7 @@ Config file path:
 
 - `${XDG_CONFIG_HOME:-~/.config}/stage-manager/config.toml`
 
-Source Stage creates this file on first launch.
+Stage creates this file on first launch.
 
 Optional overrides:
 
