@@ -99,6 +99,11 @@ export class GitClient {
   }
 
   async push(): Promise<void> {
+    const hasHeadCommit = await this.runGit(["rev-parse", "--verify", "HEAD"], true)
+    if (hasHeadCommit.code !== 0) {
+      throw new Error("No commits yet. Create a commit before pushing.")
+    }
+
     const branchResult = await this.runGit(["rev-parse", "--abbrev-ref", "HEAD"])
     const branch = branchResult.stdout.trim()
     if (!branch || branch === "HEAD") {

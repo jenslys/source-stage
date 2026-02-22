@@ -80,12 +80,17 @@ export function useGitTuiController(renderer: RendererLike) {
     async (action: TopAction): Promise<void> => {
       if (!git) return
 
-      await runTask(action.toUpperCase(), async () => {
-        if (action === "commit") {
-          setCommitDialogOpen(true)
-          setFocus("commit-summary")
+      if (action === "commit") {
+        if ((snapshot?.files.length ?? 0) === 0) {
+          setStatusMessage("No working changes to commit.")
           return
         }
+        setCommitDialogOpen(true)
+        setFocus("commit-summary")
+        return
+      }
+
+      await runTask(action.toUpperCase(), async () => {
         if (action === "refresh") {
           await refreshSnapshot()
           return
@@ -104,8 +109,17 @@ export function useGitTuiController(renderer: RendererLike) {
         await refreshSnapshot()
       })
     },
-    [git, refreshSnapshot, runTask],
+    [git, refreshSnapshot, runTask, snapshot],
   )
+
+  const openCommitDialog = useCallback(() => {
+    if ((snapshot?.files.length ?? 0) === 0) {
+      setStatusMessage("No working changes to commit.")
+      return
+    }
+    setCommitDialogOpen(true)
+    setFocus("commit-summary")
+  }, [snapshot])
 
   const commitChanges = useCallback(async (): Promise<void> => {
     if (!git) return
@@ -169,6 +183,7 @@ export function useGitTuiController(renderer: RendererLike) {
     submitBranchStrategy: branchDialog.submitBranchStrategy,
     commitChanges,
     createBranchAndCheckout: branchDialog.createBranchAndCheckout,
+    openCommitDialog,
     openShortcutsDialog: () => setShortcutsDialogOpen(true),
     closeShortcutsDialog: () => setShortcutsDialogOpen(false),
     runTopAction,

@@ -22,6 +22,7 @@ type UseGitTuiKeyboardParams = {
   submitBranchStrategy: () => Promise<void>
   commitChanges: () => Promise<void>
   createBranchAndCheckout: () => Promise<void>
+  openCommitDialog: () => void
   openShortcutsDialog: () => void
   closeShortcutsDialog: () => void
   runTopAction: (action: TopAction) => Promise<void>
@@ -47,6 +48,7 @@ export function useGitTuiKeyboard({
   submitBranchStrategy,
   commitChanges,
   createBranchAndCheckout,
+  openCommitDialog,
   openShortcutsDialog,
   closeShortcutsDialog,
   runTopAction,
@@ -136,8 +138,7 @@ export function useGitTuiKeyboard({
     if (!isDialogOpen && key.name === "c") {
       key.preventDefault()
       key.stopPropagation()
-      setCommitDialogOpen(true)
-      setFocus("commit-summary")
+      openCommitDialog()
       return
     }
 
@@ -148,12 +149,6 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!isDialogOpen && key.name === "u") {
-      key.preventDefault()
-      key.stopPropagation()
-      toggleSelectedFileInCommit()
-      return
-    }
     if (!isDialogOpen && focus === "files" && fileCount > 0 && isSpaceKey) {
       key.preventDefault()
       key.stopPropagation()
@@ -230,8 +225,7 @@ export function useGitTuiKeyboard({
       if (commitDialogOpen) {
         void commitChanges()
       } else {
-        setCommitDialogOpen(true)
-        setFocus("commit-summary")
+        openCommitDialog()
       }
     }
   })
