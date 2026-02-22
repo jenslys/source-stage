@@ -29,14 +29,18 @@ Run:
 stage
 ```
 
-From source:
+Use local source from the global CLI (debug mode):
 
 ```bash
-git clone https://github.com/jenslys/source-stage.git
-cd source-stage
-bun install
-bun run stage
+# One-time in current shell
+export STAGE_DEV_PATH=/absolute/path/to/source-stage
+
+# From any repo/folder
+stage --dev
 ```
+
+`stage` uses the installed npm package.  
+`stage --dev` uses your local checkout at `STAGE_DEV_PATH`.
 
 <details>
 <summary>Configuration</summary>
@@ -61,6 +65,10 @@ Behavior notes:
 
 </details>
 
+## Credits
+
+- Built with [OpenTUI](https://github.com/anomalyco/opentui)
+
 <details>
 <summary>Shortcuts</summary>
 
@@ -84,6 +92,7 @@ Behavior notes:
 - Install dependencies: `bun install`
 - Run app: `bun run stage`
 - Type check: `bunx tsc --noEmit`
+- Recommended: set `STAGE_DEV_PATH` in your shell profile for `stage --dev`
 
 </details>
 

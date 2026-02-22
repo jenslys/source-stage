@@ -1,2 +1,51 @@
 #!/usr/bin/env bun
-import "../index.ts"
+import { existsSync } from "node:fs"
+import { join, resolve } from "node:path"
+
+function resolveDevEntry(): string {
+  const envPath = process.env.STAGE_DEV_PATH
+  if (envPath) {
+    const entry = join(resolve(envPath), "index.ts")
+    if (existsSync(entry)) {
+      return entry
+    }
+
+    throw new Error(`STAGE_DEV_PATH does not contain index.ts: ${entry}`)
+  }
+
+  const cwdEntry = join(process.cwd(), "index.ts")
+  if (existsSync(cwdEntry)) {
+    return cwdEntry
+  }
+
+  throw new Error(
+    "stage --dev requires either STAGE_DEV_PATH=/absolute/path/to/source-stage or running from the source-stage repo root.",
+  )
+}
+
+async function runDevMode(args: string[]) {
+  const entry = resolveDevEntry()
+  const child = Bun.spawn(["bun", "run", entry, ...args], {
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+
+  process.exit(await child.exited)
+}
+
+try {
+  const args = process.argv.slice(2)
+  const devModeIndex = args.indexOf("--dev")
+
+  if (devModeIndex >= 0) {
+    args.splice(devModeIndex, 1)
+    await runDevMode(args)
+  } else {
+    await import("../index.ts")
+  }
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  console.error(message)
+  process.exit(1)
+}
