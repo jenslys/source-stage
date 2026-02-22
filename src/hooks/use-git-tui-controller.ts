@@ -51,6 +51,14 @@ export function useGitTuiController(renderer: RendererLike) {
       })),
     [snapshot],
   )
+  const branchOptionsKey = useMemo(
+    () => branchOptions.map((option) => String(option.value)).join("|"),
+    [branchOptions],
+  )
+  const fileOptionsKey = useMemo(
+    () => fileOptions.map((option) => String(option.value)).join("|"),
+    [fileOptions],
+  )
 
   const selectedFile = snapshot?.files[fileIndex] ?? null
   const diffFiletype = inferFiletype(selectedFile?.path)
@@ -240,8 +248,10 @@ export function useGitTuiController(renderer: RendererLike) {
     descriptionRef,
     focus,
     branchOptions,
+    branchOptionsKey,
     branchIndex,
     fileOptions,
+    fileOptionsKey,
     fileIndex,
     selectedFilePath: selectedFile?.path ?? null,
     diffText,

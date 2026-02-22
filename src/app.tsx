@@ -22,6 +22,7 @@ export function App() {
     >
       <TopBar
         branchOptions={controller.branchOptions}
+        branchOptionsKey={controller.branchOptionsKey}
         branchIndex={controller.branchIndex}
         focus={controller.focus}
         onBranchChange={controller.onBranchChange}
@@ -30,6 +31,7 @@ export function App() {
 
       <DiffWorkspace
         fileOptions={controller.fileOptions}
+        fileOptionsKey={controller.fileOptionsKey}
         fileIndex={controller.fileIndex}
         selectedFilePath={controller.selectedFilePath}
         focus={controller.focus}

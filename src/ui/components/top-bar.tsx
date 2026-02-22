@@ -4,18 +4,27 @@ import type { FocusTarget } from "../types"
 
 type TopBarProps = {
   branchOptions: SelectOption[]
+  branchOptionsKey: string
   branchIndex: number
   focus: FocusTarget
   onBranchChange: (index: number) => void
   onBranchSelect: (index: number, option: SelectOption | null) => void
 }
 
-export function TopBar({ branchOptions, branchIndex, focus, onBranchChange, onBranchSelect }: TopBarProps) {
+export function TopBar({
+  branchOptions,
+  branchOptionsKey,
+  branchIndex,
+  focus,
+  onBranchChange,
+  onBranchSelect,
+}: TopBarProps) {
   return (
     <box style={{ height: 3, flexDirection: "row", alignItems: "center", paddingLeft: 1, paddingRight: 1, gap: 1 }}>
       <text fg="#737373">branch</text>
       <box style={{ width: 34, height: 1 }}>
         <select
+          key={branchOptionsKey}
           style={{ width: "100%", height: "100%", backgroundColor: "#000000", textColor: "#9ca3af" }}
           options={branchOptions}
           selectedIndex={branchIndex}

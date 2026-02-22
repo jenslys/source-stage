@@ -5,6 +5,7 @@ import type { FocusTarget } from "../types"
 
 type DiffWorkspaceProps = {
   fileOptions: SelectOption[]
+  fileOptionsKey: string
   fileIndex: number
   selectedFilePath: string | null
   focus: FocusTarget
@@ -15,6 +16,7 @@ type DiffWorkspaceProps = {
 
 export function DiffWorkspace({
   fileOptions,
+  fileOptionsKey,
   fileIndex,
   selectedFilePath,
   focus,
@@ -27,6 +29,7 @@ export function DiffWorkspace({
       <box style={{ width: 42, flexDirection: "column" }}>
         <text fg="#737373">changes ({fileOptions.length})</text>
         <select
+          key={fileOptionsKey}
           style={{ width: "100%", height: "100%", backgroundColor: "#000000", textColor: "#9ca3af" }}
           options={fileOptions}
           selectedIndex={fileIndex}
