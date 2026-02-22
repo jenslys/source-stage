@@ -1,23 +1,24 @@
-# Source Stage
+# Source Stage [Beta]
 
-Source Stage is an opinionated Git TUI focused on one thing: a clean, fast commit workflow.
+A calm, opinionated Git TUI.
 
-Inspired by GitHub Desktop, built for terminal users.
+Inspired by GitHub Desktop. Built with OpenTUI.
+
+Source Stage keeps the core Git loop focused: review changes, stage with intent, commit clearly, and move on.
+
+What it does:
+
+- Diff-first workflow with per-file stage/unstage
+- Fast branch switching and commit history view
+- Optional AI-generated conventional commits
 
 <video src="https://github.com/user-attachments/assets/5f61e323-bb5e-4b11-9352-182d1a884feb" controls></video>
 
-## Why Source Stage
-
-- Minimal interface, diff-first workflow
-- Fast branch switching and commit flow
-- Auto-stage with per-file include/exclude
-- Built-in AI commit message mode (optional)
-
-## Install
+## Get Started
 
 Prerequisite: [Bun](https://bun.sh)
 
-Global install:
+Install:
 
 ```bash
 bun add -g source-stage
@@ -29,72 +30,32 @@ Run:
 stage
 ```
 
-Use local source from the global CLI (debug mode):
+Debug with your local checkout from any repo:
 
 ```bash
-# One-time in current shell
 export STAGE_DEV_PATH=/absolute/path/to/source-stage
-
-# From any repo/folder
 stage --dev
 ```
 
-`stage` uses the installed npm package.  
-`stage --dev` uses your local checkout at `STAGE_DEV_PATH`.
+## Use
 
-<details>
-<summary>Configuration</summary>
+```bash
+stage            # use installed npm package
+stage --dev      # use local checkout at STAGE_DEV_PATH
+```
 
-Config file location:
+## Configuration
+
+Config file path:
 
 - `${XDG_CONFIG_HOME:-~/.config}/stage-manager/config.toml`
 
-Source Stage auto-creates this file with the full default config on first launch.
+Source Stage creates this file on first launch.
 
 Optional overrides:
 
 - `STAGE_CONFIG=/path/to/config.toml`
 - `./.stage-manager.toml` (repo-local)
-
-Behavior notes:
-
-- `auto_stage_on_commit = true`: files start selected.
-- `auto_stage_on_commit = false`: files start unselected.
-- `ai.enabled = true`: `c` generates a conventional commit subject and auto-commits.
-- If AI commit generation fails, Source Stage opens the normal commit dialog.
-
-</details>
-
-## Credits
-
-- Built with [OpenTUI](https://github.com/anomalyco/opentui)
-
-<details>
-<summary>Shortcuts</summary>
-
-- `?`: toggle shortcuts overlay
-- `b`: change branch
-- `h`: open commit history
-- `c`: open commit dialog (or AI auto-commit when enabled)
-- `space`: include/exclude selected file for commit
-- `↑ / ↓`: move file selection
-- `r`: refresh
-- `f`: fetch
-- `l`: pull
-- `p`: push
-- `esc`: close dialog (or exit from main view)
-
-</details>
-
-<details>
-<summary>Development</summary>
-
-- Install dependencies: `bun install`
-- Run app: `bun run stage`
-- Type check: `bunx tsc --noEmit`
-- Recommended: set `STAGE_DEV_PATH` in your shell profile for `stage --dev`
-
-</details>
 
 <details>
 <summary>All Config Options (Defaults)</summary>
@@ -122,3 +83,24 @@ max_chars_per_file = 4000
 ```
 
 </details>
+
+<details>
+<summary>Shortcuts</summary>
+
+- `?`: toggle shortcuts overlay
+- `b`: change branch
+- `h`: open commit history
+- `c`: open commit dialog (or AI auto-commit when enabled)
+- `space`: include/exclude selected file for commit
+- `↑ / ↓`: move file selection
+- `r`: refresh
+- `f`: fetch
+- `l`: pull
+- `p`: push
+- `esc`: close dialog (or exit from main view)
+
+</details>
+
+## Credits
+
+- Built with [OpenTUI](https://github.com/anomalyco/opentui)
