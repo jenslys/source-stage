@@ -92,7 +92,7 @@ export function BranchDialog({
           </>
         ) : (
           <>
-            <text fg="#525252">enter to create and checkout | esc to go back</text>
+            <text fg="#525252">enter to create and checkout | invalid chars become "-" | esc to go back</text>
             <input
               ref={branchNameRef}
               value={branchName}

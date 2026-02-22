@@ -5,6 +5,7 @@ import { useGitTuiController } from "./hooks/use-git-tui-controller"
 import { CommitDialog } from "./ui/components/commit-dialog"
 import { DiffWorkspace } from "./ui/components/diff-workspace"
 import { FooterBar } from "./ui/components/footer-bar"
+import { ShortcutsDialog } from "./ui/components/shortcuts-dialog"
 import { TopBar } from "./ui/components/top-bar"
 
 export function App() {
@@ -70,6 +71,8 @@ export function App() {
         descriptionRef={controller.descriptionRef}
         onSummaryInput={controller.onSummaryInput}
       />
+
+      <ShortcutsDialog open={controller.shortcutsDialogOpen} />
     </box>
   )
 }

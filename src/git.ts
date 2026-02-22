@@ -136,7 +136,7 @@ export class GitClient {
   }
 
   async createAndCheckoutBranch(branchName: string): Promise<void> {
-    const name = branchName.trim()
+    const name = normalizeBranchName(branchName)
     if (!name) {
       throw new Error("Branch name is required.")
     }
@@ -211,4 +211,18 @@ export class GitClient {
       throw error
     }
   }
+}
+
+function normalizeBranchName(input: string): string {
+  const normalized = input
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9/]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/\/+/g, "/")
+    .replace(/\/-/g, "/")
+    .replace(/-\//g, "/")
+    .replace(/^[-/]+|[-/]+$/g, "")
+
+  return normalized
 }

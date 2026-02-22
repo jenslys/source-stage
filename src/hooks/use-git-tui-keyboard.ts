@@ -8,6 +8,7 @@ type UseGitTuiKeyboardParams = {
   commitDialogOpen: boolean
   branchDialogOpen: boolean
   branchDialogMode: "select" | "create" | "confirm"
+  shortcutsDialogOpen: boolean
   setCommitDialogOpen: Dispatch<SetStateAction<boolean>>
   setFocus: Dispatch<SetStateAction<FocusTarget>>
   focus: FocusTarget
@@ -21,6 +22,8 @@ type UseGitTuiKeyboardParams = {
   submitBranchStrategy: () => Promise<void>
   commitChanges: () => Promise<void>
   createBranchAndCheckout: () => Promise<void>
+  openShortcutsDialog: () => void
+  closeShortcutsDialog: () => void
   runTopAction: (action: TopAction) => Promise<void>
   toggleSelectedFileInCommit: () => void
 }
@@ -30,6 +33,7 @@ export function useGitTuiKeyboard({
   commitDialogOpen,
   branchDialogOpen,
   branchDialogMode,
+  shortcutsDialogOpen,
   setCommitDialogOpen,
   setFocus,
   focus,
@@ -43,12 +47,36 @@ export function useGitTuiKeyboard({
   submitBranchStrategy,
   commitChanges,
   createBranchAndCheckout,
+  openShortcutsDialog,
+  closeShortcutsDialog,
   runTopAction,
   toggleSelectedFileInCommit,
 }: UseGitTuiKeyboardParams) {
   useKeyboard((key) => {
+    const isHelpKey = key.name === "?" || ((key.name === "/" || key.name === "slash") && key.shift)
+    const isSpaceKey = key.name === "space" || key.name === " "
     const isEnter = key.name === "return" || key.name === "linefeed"
-    const isDialogOpen = commitDialogOpen || branchDialogOpen
+    const isDialogOpen = commitDialogOpen || branchDialogOpen || shortcutsDialogOpen
+
+    if (!commitDialogOpen && !branchDialogOpen && isHelpKey) {
+      key.preventDefault()
+      key.stopPropagation()
+      if (shortcutsDialogOpen) {
+        closeShortcutsDialog()
+      } else {
+        openShortcutsDialog()
+      }
+      return
+    }
+
+    if (shortcutsDialogOpen) {
+      if (key.name === "escape") {
+        key.preventDefault()
+        key.stopPropagation()
+        closeShortcutsDialog()
+      }
+      return
+    }
 
     if (branchDialogOpen && isEnter) {
       key.preventDefault()
@@ -121,6 +149,12 @@ export function useGitTuiKeyboard({
     }
 
     if (!isDialogOpen && key.name === "u") {
+      key.preventDefault()
+      key.stopPropagation()
+      toggleSelectedFileInCommit()
+      return
+    }
+    if (!isDialogOpen && focus === "files" && fileCount > 0 && isSpaceKey) {
       key.preventDefault()
       key.stopPropagation()
       toggleSelectedFileInCommit()

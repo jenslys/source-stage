@@ -36,6 +36,7 @@ export function useGitTuiController(renderer: RendererLike) {
   const [diffMessage, setDiffMessage] = useState<string | null>("No file selected")
 
   const [commitDialogOpen, setCommitDialogOpen] = useState(false)
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState("Initializing...")
 
@@ -154,6 +155,7 @@ export function useGitTuiController(renderer: RendererLike) {
     commitDialogOpen,
     branchDialogOpen: branchDialog.branchDialogOpen,
     branchDialogMode: branchDialog.branchDialogMode,
+    shortcutsDialogOpen,
     setCommitDialogOpen,
     setFocus,
     focus,
@@ -167,6 +169,8 @@ export function useGitTuiController(renderer: RendererLike) {
     submitBranchStrategy: branchDialog.submitBranchStrategy,
     commitChanges,
     createBranchAndCheckout: branchDialog.createBranchAndCheckout,
+    openShortcutsDialog: () => setShortcutsDialogOpen(true),
+    closeShortcutsDialog: () => setShortcutsDialogOpen(false),
     runTopAction,
     toggleSelectedFileInCommit,
   })
@@ -189,6 +193,7 @@ export function useGitTuiController(renderer: RendererLike) {
     diffMessage,
     diffFiletype,
     commitDialogOpen,
+    shortcutsDialogOpen,
     summary,
     descriptionRenderKey,
     statusMessage,
