@@ -28,11 +28,8 @@ export function ShortcutsDialog({ open, aiCommitEnabled, theme }: ShortcutsDialo
   return (
     <box
       style={{
-        position: "absolute",
-        left: 0,
-        top: 0,
         width: "100%",
-        height: "100%",
+        flexGrow: 1,
         paddingLeft: 6,
         paddingRight: 6,
         paddingTop: 8,

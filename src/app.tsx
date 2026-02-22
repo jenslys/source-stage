@@ -20,6 +20,15 @@ export function App({ config }: AppProps) {
   const { width: terminalWidth = 0, height: terminalHeight = 0 } = useTerminalDimensions()
   const theme = resolveUiTheme(config.ui.theme)
   const controller = useGitTuiController(renderer, config)
+  const activeScreen = controller.branchDialogOpen
+    ? "branch"
+    : controller.commitDialogOpen
+      ? "commit"
+      : controller.historyDialogOpen
+        ? "history"
+        : controller.shortcutsDialogOpen
+          ? "shortcuts"
+          : "main"
 
   return (
     <box
@@ -31,78 +40,88 @@ export function App({ config }: AppProps) {
     >
       <TopBar
         currentBranch={controller.currentBranch}
-        showShortcutsHint={config.ui.showShortcutsHint}
+        tracking={controller.tracking}
         theme={theme}
       />
 
-      <DiffWorkspace
-        fileRows={controller.fileRows}
-        fileIndex={controller.fileIndex}
-        selectedFilePath={controller.selectedFilePath}
-        focus={controller.focus}
-        terminalWidth={terminalWidth}
-        terminalHeight={terminalHeight}
-        diffText={controller.diffText}
-        diffMessage={controller.diffMessage}
-        diffFiletype={controller.diffFiletype}
-        diffView={config.ui.diffView}
-        theme={theme}
-      />
+      {activeScreen === "main" ? (
+        <DiffWorkspace
+          fileRows={controller.fileRows}
+          fileIndex={controller.fileIndex}
+          selectedFilePath={controller.selectedFilePath}
+          focus={controller.focus}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+          diffText={controller.diffText}
+          diffMessage={controller.diffMessage}
+          diffFiletype={controller.diffFiletype}
+          diffView={config.ui.diffView}
+          theme={theme}
+        />
+      ) : null}
+
+      {activeScreen === "branch" ? (
+        <BranchDialog
+          open={true}
+          mode={controller.branchDialogMode}
+          focus={controller.focus}
+          currentBranch={controller.currentBranch}
+          branchOptions={controller.branchOptions}
+          branchOptionsKey={controller.branchOptionsKey}
+          branchIndex={controller.branchIndex}
+          onBranchChange={controller.onBranchDialogChange}
+          branchStrategyOptions={controller.branchStrategyOptions}
+          branchStrategyIndex={controller.branchStrategyIndex}
+          onBranchStrategyChange={controller.onBranchStrategyChange}
+          branchName={controller.newBranchName}
+          branchNameRef={controller.branchNameRef}
+          onBranchNameInput={controller.onBranchNameInput}
+          theme={theme}
+        />
+      ) : null}
+
+      {activeScreen === "commit" ? (
+        <CommitDialog
+          open={true}
+          focus={controller.focus}
+          summary={controller.summary}
+          descriptionRenderKey={controller.descriptionRenderKey}
+          summaryRef={controller.summaryRef}
+          descriptionRef={controller.descriptionRef}
+          onSummaryInput={controller.onSummaryInput}
+          theme={theme}
+        />
+      ) : null}
+
+      {activeScreen === "history" ? (
+        <CommitHistoryDialog
+          open={true}
+          mode={controller.historyMode}
+          focus={controller.focus}
+          currentBranch={controller.currentBranch}
+          commitOptions={controller.commitOptions}
+          commitIndex={controller.commitIndex}
+          onCommitChange={controller.onCommitIndexChange}
+          actionOptions={controller.actionOptions}
+          actionIndex={controller.actionIndex}
+          onActionChange={controller.onActionIndexChange}
+          selectedCommitTitle={controller.selectedCommitTitle}
+          theme={theme}
+        />
+      ) : null}
+
+      {activeScreen === "shortcuts" ? (
+        <ShortcutsDialog open={true} aiCommitEnabled={config.ai.enabled} theme={theme} />
+      ) : null}
 
       <FooterBar
         statusMessage={controller.statusMessage}
-        topStatus={controller.topStatus}
+        showShortcutsHint={config.ui.showShortcutsHint}
         terminalWidth={terminalWidth}
         fatalError={controller.fatalError}
         isBusy={controller.isBusy}
         theme={theme}
       />
-
-      <BranchDialog
-        open={controller.branchDialogOpen}
-        mode={controller.branchDialogMode}
-        focus={controller.focus}
-        currentBranch={controller.currentBranch}
-        branchOptions={controller.branchOptions}
-        branchOptionsKey={controller.branchOptionsKey}
-        branchIndex={controller.branchIndex}
-        onBranchChange={controller.onBranchDialogChange}
-        branchStrategyOptions={controller.branchStrategyOptions}
-        branchStrategyIndex={controller.branchStrategyIndex}
-        onBranchStrategyChange={controller.onBranchStrategyChange}
-        branchName={controller.newBranchName}
-        branchNameRef={controller.branchNameRef}
-        onBranchNameInput={controller.onBranchNameInput}
-        theme={theme}
-      />
-
-      <CommitDialog
-        open={controller.commitDialogOpen}
-        focus={controller.focus}
-        summary={controller.summary}
-        descriptionRenderKey={controller.descriptionRenderKey}
-        summaryRef={controller.summaryRef}
-        descriptionRef={controller.descriptionRef}
-        onSummaryInput={controller.onSummaryInput}
-        theme={theme}
-      />
-
-      <CommitHistoryDialog
-        open={controller.historyDialogOpen}
-        mode={controller.historyMode}
-        focus={controller.focus}
-        currentBranch={controller.currentBranch}
-        commitOptions={controller.commitOptions}
-        commitIndex={controller.commitIndex}
-        onCommitChange={controller.onCommitIndexChange}
-        actionOptions={controller.actionOptions}
-        actionIndex={controller.actionIndex}
-        onActionChange={controller.onActionIndexChange}
-        selectedCommitTitle={controller.selectedCommitTitle}
-        theme={theme}
-      />
-
-      <ShortcutsDialog open={controller.shortcutsDialogOpen} aiCommitEnabled={config.ai.enabled} theme={theme} />
     </box>
   )
 }

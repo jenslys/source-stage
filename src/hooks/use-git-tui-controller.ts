@@ -5,7 +5,7 @@ import { generateAiCommitSummary } from "../ai-commit"
 import type { StageConfig } from "../config"
 import { GitClient, type RepoSnapshot } from "../git"
 import { type FocusTarget, type TopAction } from "../ui/types"
-import { buildFileRow, formatTrackingSummary, inferFiletype } from "../ui/utils"
+import { buildFileRow, inferFiletype } from "../ui/utils"
 import { useBranchDialogController } from "./use-branch-dialog-controller"
 import { useCommitHistoryController } from "./use-commit-history-controller"
 import {
@@ -259,9 +259,19 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     toggleSelectedFileInCommit,
   })
 
-  const topStatus = snapshot
-    ? `⎇ ${snapshot.branch}${snapshot.upstream ? ` ⇄ ${snapshot.upstream}` : ""}  ${formatTrackingSummary(snapshot.upstream, snapshot.ahead, snapshot.behind)}`
-    : "… loading repository state"
+  const tracking = snapshot
+    ? {
+        loading: false,
+        upstream: snapshot.upstream,
+        ahead: snapshot.ahead,
+        behind: snapshot.behind,
+      }
+    : {
+        loading: true,
+        upstream: null,
+        ahead: 0,
+        behind: 0,
+      }
 
   return {
     summaryRef,
@@ -284,7 +294,7 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     statusMessage,
     fatalError,
     isBusy,
-    topStatus,
+    tracking,
     onSummaryInput: setSummary,
   }
 }

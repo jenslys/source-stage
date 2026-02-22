@@ -43,7 +43,7 @@ export function DiffWorkspace({
             const selected = absoluteIndex === fileIndex
             return (
               <box key={row.path} style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}) }}>
-                <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>{row.included ? "●" : "○"}</text>
+                <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>{row.included ? "[x]" : "[ ]"}</text>
                 <text fg={theme.colors.subtleText}> </text>
                 <text fg={row.statusColor}>{row.statusSymbol}</text>
                 <text fg={theme.colors.subtleText}> </text>

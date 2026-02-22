@@ -12,6 +12,8 @@ type UiColors = {
   mutedText: string
   subtleText: string
   hintText: string
+  successText: string
+  warningText: string
   selectedRowBackground: string
   selectText: string
   selectSelectedBackground: string
@@ -43,6 +45,8 @@ const DARK_COLORS: UiColors = {
   mutedText: "#737373",
   subtleText: "#525252",
   hintText: "#9ca3af",
+  successText: "#3fb950",
+  warningText: "#d29922",
   selectedRowBackground: "#101010",
   selectText: "#9ca3af",
   selectSelectedBackground: "#111111",
@@ -68,6 +72,8 @@ const LIGHT_COLORS: UiColors = {
   mutedText: "#6b7280",
   subtleText: "#9ca3af",
   hintText: "#64748b",
+  successText: "#15803d",
+  warningText: "#b45309",
   selectedRowBackground: "#e5e7eb",
   selectText: "#334155",
   selectSelectedBackground: "#dbeafe",

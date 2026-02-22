@@ -124,27 +124,38 @@ type UseFileDiffLoaderParams = {
 }
 
 export function useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessage }: UseFileDiffLoaderParams) {
+  const previousSelectedPathRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!git || !selectedFile) {
+      previousSelectedPathRef.current = null
       setDiffText("")
       setDiffMessage("No file selected")
       return
     }
 
+    const selectedPath = selectedFile.path
+    const pathChanged = previousSelectedPathRef.current !== selectedPath
+    previousSelectedPathRef.current = selectedPath
+
     let cancelled = false
-    setDiffText("")
-    setDiffMessage(`Loading diff: ${selectedFile.path}`)
+    if (pathChanged) {
+      setDiffText("")
+      setDiffMessage(`Loading diff: ${selectedPath}`)
+    }
 
     const loadDiff = async () => {
       try {
-        const nextDiff = await git.diffForFile(selectedFile.path)
+        const nextDiff = await git.diffForFile(selectedPath)
         if (cancelled) return
         setDiffText(nextDiff)
-        setDiffMessage(nextDiff.trim() ? null : `No diff output for ${selectedFile.path}`)
+        setDiffMessage(nextDiff.trim() ? null : `No diff output for ${selectedPath}`)
       } catch (error) {
         if (cancelled) return
         const message = error instanceof Error ? error.message : String(error)
-        setDiffText("")
+        if (pathChanged) {
+          setDiffText("")
+        }
         setDiffMessage(`Failed to load diff: ${message}`)
       }
     }

@@ -1,6 +1,6 @@
 {
   "name": "source-stage",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Minimalist TUI Git client",
   "author": "jenslys",
   "repository": {
