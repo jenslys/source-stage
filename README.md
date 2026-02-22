@@ -71,18 +71,30 @@ limit = 200
 
 [git]
 auto_stage_on_commit = true
+
+[ai]
+enabled = false
+provider = "cerebras"        # only supported provider for now
+api_key = ""                 # required when enabled = true
+model = "gpt-oss-120b"
+reasoning_effort = "low"     # "low" | "medium" | "high"
+max_files = 32               # number of changed files sent to the model
+max_chars_per_file = 4000    # per-file diff budget sent to the model
 ```
 
 `auto_stage_on_commit` controls commit staging behavior:
 - `true`: files start selected; commit stages all changes, then unstages files you unchecked.
 - `false`: files start unselected; commit stages only files you explicitly checked.
 
+When `ai.enabled = true`, pressing `c` no longer opens the commit dialog.
+Instead, Stage generates a short conventional commit subject with Cerebras and commits immediately.
+
 ## Core Shortcuts
 
 - `?`: toggle shortcuts overlay
 - `b`: open branch dialog
 - `h`: open commit history
-- `c`: open commit dialog
+- `c`: open commit dialog (or AI auto-commit when enabled)
 - `space`: include/exclude selected file for commit
 - `↑ / ↓`: move file selection
 - `r`: refresh
