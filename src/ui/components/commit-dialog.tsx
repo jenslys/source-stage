@@ -1,6 +1,7 @@
 import type { InputRenderable, TextareaRenderable } from "@opentui/core"
 import type { RefObject } from "react"
 
+import type { UiTheme } from "../theme"
 import type { FocusTarget } from "../types"
 
 type CommitDialogProps = {
@@ -11,6 +12,7 @@ type CommitDialogProps = {
   summaryRef: RefObject<InputRenderable | null>
   descriptionRef: RefObject<TextareaRenderable | null>
   onSummaryInput: (value: string) => void
+  theme: UiTheme
 }
 
 export function CommitDialog({
@@ -21,6 +23,7 @@ export function CommitDialog({
   summaryRef,
   descriptionRef,
   onSummaryInput,
+  theme,
 }: CommitDialogProps) {
   if (!open) return null
 
@@ -32,7 +35,6 @@ export function CommitDialog({
         top: 0,
         width: "100%",
         height: "100%",
-        backgroundColor: "#000000",
         paddingLeft: 6,
         paddingRight: 6,
         paddingTop: 4,
@@ -40,8 +42,8 @@ export function CommitDialog({
         gap: 1,
       }}
     >
-      <text fg="#f5f5f5">commit changes</text>
-      <text fg="#525252">enter to commit | esc to cancel</text>
+      <text fg={theme.colors.title}>commit changes</text>
+      <text fg={theme.colors.subtleText}>enter to commit | esc to cancel</text>
       <box style={{ width: "100%", height: 3, flexDirection: "column", marginTop: 1 }}>
         <input
           ref={summaryRef}
@@ -49,10 +51,8 @@ export function CommitDialog({
           onInput={onSummaryInput}
           placeholder="summary (required)"
           focused={focus === "commit-summary"}
-          backgroundColor="#000000"
-          textColor="#f3f4f6"
-          focusedBackgroundColor="#000000"
-          focusedTextColor="#f9fafb"
+          textColor={theme.colors.inputText}
+          focusedTextColor={theme.colors.inputFocusedText}
         />
       </box>
       <box style={{ width: "100%", flexGrow: 1 }}>
@@ -62,10 +62,8 @@ export function CommitDialog({
           initialValue=""
           placeholder="description (optional)"
           focused={focus === "commit-description"}
-          backgroundColor="#000000"
-          textColor="#d1d5db"
-          focusedBackgroundColor="#000000"
-          focusedTextColor="#f3f4f6"
+          textColor={theme.colors.secondaryInputText}
+          focusedTextColor={theme.colors.inputText}
         />
       </box>
     </box>

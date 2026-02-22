@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { fitFooterStatusLine } from "../utils"
+import type { UiTheme } from "../theme"
 
 type FooterBarProps = {
   statusMessage: string
@@ -8,11 +9,12 @@ type FooterBarProps = {
   terminalWidth: number
   fatalError: string | null
   isBusy: boolean
+  theme: UiTheme
 }
 
 const SPINNER_FRAMES = "⣾⣽⣻⢿⡿⣟⣯⣷"
 
-export function FooterBar({ statusMessage, topStatus, terminalWidth, fatalError, isBusy }: FooterBarProps) {
+export function FooterBar({ statusMessage, topStatus, terminalWidth, fatalError, isBusy, theme }: FooterBarProps) {
   const [spinnerIndex, setSpinnerIndex] = useState(0)
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export function FooterBar({ statusMessage, topStatus, terminalWidth, fatalError,
 
   return (
     <box style={{ height: 1, paddingLeft: 1, paddingRight: 1 }}>
-      <text fg={fatalError ? "#ff7b72" : isBusy ? "#d29922" : "#58a6ff"}>{footerLine}</text>
+      <text fg={fatalError ? theme.colors.footerError : isBusy ? theme.colors.footerBusy : theme.colors.footerReady}>{footerLine}</text>
     </box>
   )
 }

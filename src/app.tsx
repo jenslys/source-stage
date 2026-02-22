@@ -9,6 +9,7 @@ import { DiffWorkspace } from "./ui/components/diff-workspace"
 import { FooterBar } from "./ui/components/footer-bar"
 import { ShortcutsDialog } from "./ui/components/shortcuts-dialog"
 import { TopBar } from "./ui/components/top-bar"
+import { resolveUiTheme } from "./ui/theme"
 
 type AppProps = {
   config: StageConfig
@@ -17,6 +18,7 @@ type AppProps = {
 export function App({ config }: AppProps) {
   const renderer = useRenderer()
   const { width: terminalWidth = 0, height: terminalHeight = 0 } = useTerminalDimensions()
+  const theme = resolveUiTheme(config.ui.theme)
   const controller = useGitTuiController(renderer, config)
 
   return (
@@ -25,12 +27,12 @@ export function App({ config }: AppProps) {
         width: "100%",
         height: "100%",
         flexDirection: "column",
-        backgroundColor: "#000000",
       }}
     >
       <TopBar
         currentBranch={controller.currentBranch}
         showShortcutsHint={config.ui.showShortcutsHint}
+        theme={theme}
       />
 
       <DiffWorkspace
@@ -38,11 +40,13 @@ export function App({ config }: AppProps) {
         fileIndex={controller.fileIndex}
         selectedFilePath={controller.selectedFilePath}
         focus={controller.focus}
+        terminalWidth={terminalWidth}
         terminalHeight={terminalHeight}
         diffText={controller.diffText}
         diffMessage={controller.diffMessage}
         diffFiletype={controller.diffFiletype}
         diffView={config.ui.diffView}
+        theme={theme}
       />
 
       <FooterBar
@@ -51,6 +55,7 @@ export function App({ config }: AppProps) {
         terminalWidth={terminalWidth}
         fatalError={controller.fatalError}
         isBusy={controller.isBusy}
+        theme={theme}
       />
 
       <BranchDialog
@@ -68,6 +73,7 @@ export function App({ config }: AppProps) {
         branchName={controller.newBranchName}
         branchNameRef={controller.branchNameRef}
         onBranchNameInput={controller.onBranchNameInput}
+        theme={theme}
       />
 
       <CommitDialog
@@ -78,6 +84,7 @@ export function App({ config }: AppProps) {
         summaryRef={controller.summaryRef}
         descriptionRef={controller.descriptionRef}
         onSummaryInput={controller.onSummaryInput}
+        theme={theme}
       />
 
       <CommitHistoryDialog
@@ -92,9 +99,10 @@ export function App({ config }: AppProps) {
         actionIndex={controller.actionIndex}
         onActionChange={controller.onActionIndexChange}
         selectedCommitTitle={controller.selectedCommitTitle}
+        theme={theme}
       />
 
-      <ShortcutsDialog open={controller.shortcutsDialogOpen} aiCommitEnabled={config.ai.enabled} />
+      <ShortcutsDialog open={controller.shortcutsDialogOpen} aiCommitEnabled={config.ai.enabled} theme={theme} />
     </box>
   )
 }

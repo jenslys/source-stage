@@ -17,6 +17,7 @@ function createDefaultConfigToml(defaults: StageConfig): string {
   return [
     "[ui]",
     `diff_view = "${defaults.ui.diffView}"`,
+    `theme = "${defaults.ui.theme}"`,
     `hide_whitespace_changes = ${defaults.ui.hideWhitespaceChanges}`,
     `show_shortcuts_hint = ${defaults.ui.showShortcutsHint}`,
     "",

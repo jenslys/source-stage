@@ -6,6 +6,7 @@ import { ensureUserConfigFile } from "./config-file"
 export type StageConfig = {
   ui: {
     diffView: "unified" | "split"
+    theme: "auto" | "dark" | "light"
     hideWhitespaceChanges: boolean
     showShortcutsHint: boolean
   }
@@ -34,6 +35,7 @@ export type ResolvedStageConfig = {
 export const DEFAULT_STAGE_CONFIG: StageConfig = {
   ui: {
     diffView: "unified",
+    theme: "auto",
     hideWhitespaceChanges: true,
     showShortcutsHint: true,
   },
@@ -119,13 +121,20 @@ function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
 
   if (root.ui !== undefined) {
     const ui = asRecord(root.ui, `[ui] in ${sourcePath}`)
-    assertNoUnknownKeys(ui, ["diff_view", "hide_whitespace_changes", "show_shortcuts_hint"], `[ui] in ${sourcePath}`)
+    assertNoUnknownKeys(ui, ["diff_view", "theme", "hide_whitespace_changes", "show_shortcuts_hint"], `[ui] in ${sourcePath}`)
 
     if (ui.diff_view !== undefined) {
       if (ui.diff_view !== "unified" && ui.diff_view !== "split") {
         throw new Error(`Invalid value for ui.diff_view in ${sourcePath}. Expected "unified" or "split".`)
       }
       config.ui.diffView = ui.diff_view
+    }
+
+    if (ui.theme !== undefined) {
+      if (ui.theme !== "auto" && ui.theme !== "dark" && ui.theme !== "light") {
+        throw new Error(`Invalid value for ui.theme in ${sourcePath}. Expected "auto", "dark", or "light".`)
+      }
+      config.ui.theme = ui.theme
     }
 
     if (ui.hide_whitespace_changes !== undefined) {
@@ -223,6 +232,7 @@ function cloneConfig(config: StageConfig): StageConfig {
   return {
     ui: {
       diffView: config.ui.diffView,
+      theme: config.ui.theme,
       hideWhitespaceChanges: config.ui.hideWhitespaceChanges,
       showShortcutsHint: config.ui.showShortcutsHint,
     },

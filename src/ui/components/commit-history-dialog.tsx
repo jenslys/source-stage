@@ -1,5 +1,6 @@
 import type { SelectOption } from "@opentui/core"
 
+import type { UiTheme } from "../theme"
 import type { FocusTarget } from "../types"
 
 type CommitHistoryDialogProps = {
@@ -14,6 +15,7 @@ type CommitHistoryDialogProps = {
   actionIndex: number
   onActionChange: (index: number) => void
   selectedCommitTitle: string
+  theme: UiTheme
 }
 
 export function CommitHistoryDialog({
@@ -28,6 +30,7 @@ export function CommitHistoryDialog({
   actionIndex,
   onActionChange,
   selectedCommitTitle,
+  theme,
 }: CommitHistoryDialogProps) {
   if (!open) return null
 
@@ -39,7 +42,6 @@ export function CommitHistoryDialog({
         top: 0,
         width: "100%",
         height: "100%",
-        backgroundColor: "#000000",
         paddingLeft: 6,
         paddingRight: 6,
         paddingTop: 8,
@@ -47,39 +49,37 @@ export function CommitHistoryDialog({
       }}
     >
       <box style={{ width: "100%", maxWidth: 96, flexDirection: "column", gap: 1, flexGrow: 1 }}>
-        <text fg="#f5f5f5">commit history</text>
-        <text fg="#525252">current branch: {currentBranch}</text>
+        <text fg={theme.colors.title}>commit history</text>
+        <text fg={theme.colors.subtleText}>current branch: {currentBranch}</text>
 
         {mode === "list" ? (
           <>
-            <text fg="#525252">enter to choose action for selected commit | esc to close</text>
+            <text fg={theme.colors.subtleText}>enter to choose action for selected commit | esc to close</text>
             <select
-              style={{ width: "100%", height: "100%", backgroundColor: "#000000", textColor: "#9ca3af" }}
+              style={{ width: "100%", height: "100%", textColor: theme.colors.selectText }}
               options={commitOptions}
               selectedIndex={commitIndex}
               showDescription={true}
               focused={focus === "history-commits"}
-              selectedBackgroundColor="#111111"
-              selectedTextColor="#ffffff"
-              focusedBackgroundColor="#000000"
-              focusedTextColor="#f3f4f6"
+              selectedBackgroundColor={theme.colors.selectSelectedBackground}
+              selectedTextColor={theme.colors.selectSelectedText}
+              focusedTextColor={theme.colors.selectFocusedText}
               onChange={onCommitChange}
             />
           </>
         ) : (
           <>
-            <text fg="#f3f4f6">{selectedCommitTitle}</text>
-            <text fg="#525252">choose action | enter confirm | esc back</text>
+            <text fg={theme.colors.text}>{selectedCommitTitle}</text>
+            <text fg={theme.colors.subtleText}>choose action | enter confirm | esc back</text>
             <select
-              style={{ width: "100%", height: 4, backgroundColor: "#000000", textColor: "#9ca3af" }}
+              style={{ width: "100%", height: 4, textColor: theme.colors.selectText }}
               options={actionOptions}
               selectedIndex={actionIndex}
               showDescription={true}
               focused={focus === "history-actions"}
-              selectedBackgroundColor="#111111"
-              selectedTextColor="#ffffff"
-              focusedBackgroundColor="#000000"
-              focusedTextColor="#f3f4f6"
+              selectedBackgroundColor={theme.colors.selectSelectedBackground}
+              selectedTextColor={theme.colors.selectSelectedText}
+              focusedTextColor={theme.colors.selectFocusedText}
               onChange={onActionChange}
             />
           </>

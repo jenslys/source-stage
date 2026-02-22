@@ -57,12 +57,18 @@ Optional overrides:
 - `STAGE_CONFIG=/path/to/config.toml`
 - `./.stage-manager.toml` (repo-local)
 
+Theme behavior:
+
+- `ui.theme = "auto"` follows OS appearance (default)
+- `ui.theme = "dark"` or `ui.theme = "light"` forces a mode
+
 <details>
 <summary>All Config Options (Defaults)</summary>
 
 ```toml
 [ui]
 diff_view = "unified"                # "unified" | "split"
+theme = "auto"                       # "auto" | "dark" | "light"
 hide_whitespace_changes = true
 show_shortcuts_hint = true
 
