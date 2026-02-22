@@ -69,7 +69,9 @@ export function useGitTuiKeyboard({
   toggleSelectedFileInCommit,
 }: UseGitTuiKeyboardParams) {
   useKeyboard((key) => {
-    const isHelpKey = key.name === "?" || ((key.name === "/" || key.name === "slash") && key.shift)
+    const hasNonShiftModifier = key.ctrl || key.meta || key.option || key.super || key.hyper
+    const isPlainShortcutKey = !hasNonShiftModifier
+    const isHelpKey = isPlainShortcutKey && (key.name === "?" || ((key.name === "/" || key.name === "slash") && key.shift))
     const isSpaceKey = key.name === "space" || key.name === " "
     const isEnter = key.name === "return" || key.name === "linefeed"
     const isDialogOpen = commitDialogOpen || branchDialogOpen || historyDialogOpen || shortcutsDialogOpen
@@ -172,41 +174,41 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!isDialogOpen && key.name === "c") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "c") {
       key.preventDefault()
       key.stopPropagation()
       openCommitDialog()
       return
     }
 
-    if (!isDialogOpen && key.name === "b") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "b") {
       key.preventDefault()
       key.stopPropagation()
       openBranchDialog()
       return
     }
 
-    if (!isDialogOpen && key.name === "h") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "h") {
       key.preventDefault()
       key.stopPropagation()
       void openHistoryDialog()
       return
     }
 
-    if (!isDialogOpen && focus === "files" && fileCount > 0 && isSpaceKey) {
+    if (!isDialogOpen && isPlainShortcutKey && focus === "files" && fileCount > 0 && isSpaceKey) {
       key.preventDefault()
       key.stopPropagation()
       toggleSelectedFileInCommit()
       return
     }
 
-    if (!isDialogOpen && focus === "files" && fileCount > 0 && key.name === "up") {
+    if (!isDialogOpen && isPlainShortcutKey && focus === "files" && fileCount > 0 && key.name === "up") {
       key.preventDefault()
       key.stopPropagation()
       moveToPreviousFile()
       return
     }
-    if (!isDialogOpen && focus === "files" && fileCount > 0 && key.name === "down") {
+    if (!isDialogOpen && isPlainShortcutKey && focus === "files" && fileCount > 0 && key.name === "down") {
       key.preventDefault()
       key.stopPropagation()
       moveToNextFile()
@@ -238,25 +240,25 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!isDialogOpen && key.name === "r") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "r") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("refresh")
       return
     }
-    if (!isDialogOpen && key.name === "f") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "f") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("fetch")
       return
     }
-    if (!isDialogOpen && key.name === "l") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "l") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("pull")
       return
     }
-    if (!isDialogOpen && key.name === "p") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "p") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("push")
