@@ -113,7 +113,29 @@ export class GitClient {
   }
 
   async push(): Promise<void> {
-    await this.runGit(["push"])
+    const branchResult = await this.runGit(["rev-parse", "--abbrev-ref", "HEAD"])
+    const branch = branchResult.stdout.trim()
+    if (!branch || branch === "HEAD") {
+      throw new Error("Cannot push from detached HEAD.")
+    }
+
+    const upstreamResult = await this.runGit(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], true)
+    if (upstreamResult.code === 0) {
+      await this.runGit(["push"])
+      return
+    }
+
+    const remoteResult = await this.runGit(["remote"], true)
+    const remotes = remoteResult.stdout
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+
+    if (!remotes.includes("origin")) {
+      throw new Error("No upstream configured and remote 'origin' was not found.")
+    }
+
+    await this.runGit(["push", "--set-upstream", "origin", branch])
   }
 
   async checkout(branch: string): Promise<void> {
