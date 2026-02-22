@@ -55,7 +55,7 @@ export class GitClient {
 
   async snapshot(): Promise<RepoSnapshot> {
     const [statusResult, branchesResult] = await Promise.all([
-      this.runGit(["status", "--porcelain=v1", "--branch"]),
+      this.runGit(["status", "--porcelain=v1", "--branch", "--untracked-files=all"]),
       this.runGit(["for-each-ref", "--format=%(refname:short)", "refs/heads"]),
     ])
 
