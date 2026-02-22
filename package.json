@@ -1,7 +1,7 @@
 {
   "name": "source-stage",
   "version": "1.0.0",
-  "description": "Minimal git tui inspired by GitHub Desktop",
+  "description": "Minimalist TUI Git client",
   "author": "jenslys",
   "repository": {
     "type": "git",
