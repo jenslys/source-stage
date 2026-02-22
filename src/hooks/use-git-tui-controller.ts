@@ -15,7 +15,6 @@ import {
   useSnapshotSelectionSync,
 } from "./use-git-tui-effects"
 import { useGitTuiKeyboard } from "./use-git-tui-keyboard"
-
 type RendererLike = {
   destroy: () => void
 }
@@ -261,8 +260,8 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
   })
 
   const topStatus = snapshot
-    ? `${snapshot.branch}${snapshot.upstream ? ` -> ${snapshot.upstream}` : ""}  ${formatTrackingSummary(snapshot.upstream, snapshot.ahead, snapshot.behind)}`
-    : "Loading repository state..."
+    ? `⎇ ${snapshot.branch}${snapshot.upstream ? ` ⇄ ${snapshot.upstream}` : ""}  ${formatTrackingSummary(snapshot.upstream, snapshot.ahead, snapshot.behind)}`
+    : "… loading repository state"
 
   return {
     summaryRef,

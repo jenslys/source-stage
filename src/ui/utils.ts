@@ -36,20 +36,20 @@ export function fitFooterStatusLine(left: string, right: string, width: number):
 
 export function formatTrackingSummary(upstream: string | null, ahead: number, behind: number): string {
   if (!upstream) {
-    return "unpublished branch"
+    return "◌ unpublished"
   }
   if (ahead === 0 && behind === 0) {
-    return "up to date"
+    return "✓ synced"
   }
 
   const parts: string[] = []
   if (ahead > 0) {
-    parts.push(`${ahead} to push`)
+    parts.push(`↑${ahead}`)
   }
   if (behind > 0) {
-    parts.push(`${behind} to pull`)
+    parts.push(`↓${behind}`)
   }
-  return parts.join(" | ")
+  return parts.join(" ")
 }
 
 export function buildFileRow(file: ChangedFile, excludedPaths: Set<string>): FileRow {
@@ -79,21 +79,21 @@ function splitPathParts(path: string): { directory: string; filename: string } {
 }
 
 function resolveStatusSymbol(file: ChangedFile): string {
-  if (file.untracked) return "?"
+  if (file.untracked) return "◌"
 
   const statuses = [file.indexStatus, file.worktreeStatus]
-  if (statuses.includes("D")) return "D"
-  if (statuses.includes("A")) return "A"
-  if (statuses.includes("R")) return "R"
-  if (statuses.includes("M")) return "M"
-  return statuses.find((status) => status.trim()) ?? " "
+  if (statuses.includes("D")) return "−"
+  if (statuses.includes("A")) return "+"
+  if (statuses.includes("R")) return "→"
+  if (statuses.includes("M")) return "●"
+  return "·"
 }
 
 function resolveStatusColor(statusSymbol: string): string {
-  if (statusSymbol === "A") return "#3fb950"
-  if (statusSymbol === "M") return "#58a6ff"
-  if (statusSymbol === "D") return "#ff7b72"
-  if (statusSymbol === "R") return "#d2a8ff"
-  if (statusSymbol === "?") return "#d29922"
+  if (statusSymbol === "+") return "#3fb950"
+  if (statusSymbol === "●") return "#58a6ff"
+  if (statusSymbol === "−") return "#ff7b72"
+  if (statusSymbol === "→") return "#d2a8ff"
+  if (statusSymbol === "◌") return "#d29922"
   return "#9ca3af"
 }

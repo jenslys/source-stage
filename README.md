@@ -2,6 +2,8 @@
 
 `source-stage` is an opinionated Git TUI client built with `@opentui/core` and `@opentui/react`.
 
+<video src="https://github.com/user-attachments/assets/5f61e323-bb5e-4b11-9352-182d1a884feb" controls></video>
+
 It is heavily inspired by the simplicity of GitHub Desktop:
 
 - minimal UI
@@ -83,6 +85,7 @@ max_chars_per_file = 4000    # per-file diff budget sent to the model
 ```
 
 `auto_stage_on_commit` controls commit staging behavior:
+
 - `true`: files start selected; commit stages all changes, then unstages files you unchecked.
 - `false`: files start unselected; commit stages only files you explicitly checked.
 
