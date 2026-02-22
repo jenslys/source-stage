@@ -1,5 +1,5 @@
 {
-  "name": "stage-manager",
+  "name": "source-stage",
   "module": "index.ts",
   "type": "module",
   "private": true,
