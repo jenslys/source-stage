@@ -41,7 +41,7 @@ export function useCommitHistoryController({
     if (!git) return
 
     const succeeded = await runTask("LOAD HISTORY", async () => {
-      const commits = await git.listCommits(200)
+      const commits = await git.listCommits()
       if (commits.length === 0) {
         throw new Error("No commits found in this repository.")
       }

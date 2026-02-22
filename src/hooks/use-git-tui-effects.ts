@@ -1,6 +1,6 @@
-import { useEffect, type Dispatch, type SetStateAction } from "react"
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react"
 
-import { GitClient, type ChangedFile, type RepoSnapshot } from "../git"
+import { GitClient, type ChangedFile, type GitClientOptions, type RepoSnapshot } from "../git"
 
 type SetGit = Dispatch<SetStateAction<GitClient | null>>
 type SetString = Dispatch<SetStateAction<string>>
@@ -12,15 +12,16 @@ type UseGitInitializationParams = {
   setGit: SetGit
   setFatalError: SetNullableString
   setStatusMessage: SetString
+  gitOptions: GitClientOptions
 }
 
-export function useGitInitialization({ setGit, setFatalError, setStatusMessage }: UseGitInitializationParams) {
+export function useGitInitialization({ setGit, setFatalError, setStatusMessage, gitOptions }: UseGitInitializationParams) {
   useEffect(() => {
     let cancelled = false
 
     async function init(): Promise<void> {
       try {
-        const client = await GitClient.create(process.cwd())
+        const client = await GitClient.create(process.cwd(), gitOptions)
         if (cancelled) return
         setGit(client)
         setFatalError(null)
@@ -37,7 +38,7 @@ export function useGitInitialization({ setGit, setFatalError, setStatusMessage }
     return () => {
       cancelled = true
     }
-  }, [setFatalError, setGit, setStatusMessage])
+  }, [gitOptions, setFatalError, setGit, setStatusMessage])
 }
 
 type UseGitSnapshotPollingParams = {
@@ -75,6 +76,7 @@ type UseSnapshotSelectionSyncParams = {
   fileIndex: number
   setFileIndex: SetNumber
   setExcludedPaths: SetExcludedPaths
+  autoStageOnCommit: boolean
 }
 
 export function useSnapshotSelectionSync({
@@ -82,19 +84,36 @@ export function useSnapshotSelectionSync({
   fileIndex,
   setFileIndex,
   setExcludedPaths,
+  autoStageOnCommit,
 }: UseSnapshotSelectionSyncParams) {
+  const previousPathsRef = useRef<Set<string>>(new Set())
+
   useEffect(() => {
     if (!snapshot) return
 
     const knownPaths = new Set(snapshot.files.map((file) => file.path))
+    const previousPaths = previousPathsRef.current
     setExcludedPaths((current) => {
       const next = new Set(Array.from(current).filter((path) => knownPaths.has(path)))
-      return next.size === current.size ? current : next
+
+      if (!autoStageOnCommit) {
+        for (const path of knownPaths) {
+          if (!previousPaths.has(path)) {
+            next.add(path)
+          }
+        }
+      }
+
+      if (next.size === current.size && Array.from(next).every((path) => current.has(path))) {
+        return current
+      }
+      return next
     })
 
     const nextFileIndex = Math.min(fileIndex, Math.max(snapshot.files.length - 1, 0))
     if (nextFileIndex !== fileIndex) setFileIndex(nextFileIndex)
-  }, [fileIndex, setExcludedPaths, setFileIndex, snapshot])
+    previousPathsRef.current = knownPaths
+  }, [autoStageOnCommit, fileIndex, setExcludedPaths, setFileIndex, snapshot])
 }
 
 type UseFileDiffLoaderParams = {

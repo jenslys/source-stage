@@ -1,6 +1,6 @@
 import { runGitRaw, type GitCommandResult } from "./git-process"
+import { normalizeBranchName } from "./git-branch-name"
 import { parseBranchLine, parseChangedFiles } from "./git-status-parser"
-
 export type ChangedFile = {
   path: string
   indexStatus: string
@@ -28,14 +28,24 @@ export type CommitHistoryEntry = {
   relativeDate: string
   author: string
 }
+export type GitClientOptions = {
+  hideWhitespaceChanges: boolean
+  historyLimit: number
+  autoStageOnCommit: boolean
+}
+const DEFAULT_GIT_CLIENT_OPTIONS: GitClientOptions = {
+  hideWhitespaceChanges: true,
+  historyLimit: 200,
+  autoStageOnCommit: true,
+}
 
 export class GitClient {
   private constructor(
     private readonly root: string,
-    private readonly cwd: string,
+    private readonly options: GitClientOptions,
   ) {}
 
-  static async create(cwd: string): Promise<GitClient> {
+  static async create(cwd: string, options?: Partial<GitClientOptions>): Promise<GitClient> {
     const rootResult = await runGitRaw(cwd, ["rev-parse", "--show-toplevel"])
     if (rootResult.code !== 0) {
       throw new Error(rootResult.stderr || "Current directory is not a git repository.")
@@ -44,9 +54,12 @@ export class GitClient {
     if (!root) {
       throw new Error("Failed to resolve git repository root.")
     }
-    return new GitClient(root, cwd)
+    return new GitClient(root, {
+      hideWhitespaceChanges: options?.hideWhitespaceChanges ?? DEFAULT_GIT_CLIENT_OPTIONS.hideWhitespaceChanges,
+      historyLimit: options?.historyLimit ?? DEFAULT_GIT_CLIENT_OPTIONS.historyLimit,
+      autoStageOnCommit: options?.autoStageOnCommit ?? DEFAULT_GIT_CLIENT_OPTIONS.autoStageOnCommit,
+    })
   }
-
   async snapshot(): Promise<RepoSnapshot> {
     const [statusResult, branchesResult] = await Promise.all([
       this.runGit(["status", "--porcelain=v1", "--branch", "--untracked-files=all"]),
@@ -73,9 +86,10 @@ export class GitClient {
   }
 
   async diffForFile(path: string): Promise<string> {
+    const whitespaceArgs = this.options.hideWhitespaceChanges ? ["-w"] : []
     const [unstaged, staged] = await Promise.all([
-      this.runGit(["diff", "-w", "--", path], true),
-      this.runGit(["diff", "--cached", "-w", "--", path], true),
+      this.runGit(["diff", ...whitespaceArgs, "--", path], true),
+      this.runGit(["diff", "--cached", ...whitespaceArgs, "--", path], true),
     ])
 
     const sections: string[] = []
@@ -90,7 +104,7 @@ export class GitClient {
       return sections.join("\n\n")
     }
 
-    const untracked = await this.runGit(["diff", "--no-index", "-w", "--", "/dev/null", path], true)
+    const untracked = await this.runGit(["diff", "--no-index", ...whitespaceArgs, "--", "/dev/null", path], true)
     if (untracked.stdout.trim()) {
       return `# Untracked\n${untracked.stdout.trimEnd()}`
     }
@@ -137,7 +151,7 @@ export class GitClient {
     await this.runGit(["push", "--set-upstream", "origin", branch])
   }
 
-  async listCommits(limit = 200): Promise<CommitHistoryEntry[]> {
+  async listCommits(limit = this.options.historyLimit): Promise<CommitHistoryEntry[]> {
     const result = await this.runGit([
       "log",
       `--max-count=${Math.max(limit, 1)}`,
@@ -205,15 +219,33 @@ export class GitClient {
     await this.runGit(["revert", "--no-edit", hash])
   }
 
-  async commit(summary: string, description: string, excludedPaths: string[] = []): Promise<void> {
+  async commit(summary: string, description: string, excludedPaths: string[] = [], includedPaths: string[] = []): Promise<void> {
     const title = summary.trim()
     if (!title) {
       throw new Error("Commit summary is required.")
     }
 
-    await this.runGit(["add", "-A"])
-    if (excludedPaths.length > 0) {
-      await this.runGit(["reset", "--", ...excludedPaths], true)
+    const selectedPaths = includedPaths.map((path) => path.trim()).filter(Boolean)
+    if (selectedPaths.length === 0) {
+      throw new Error("No files selected for commit.")
+    }
+
+    if (this.options.autoStageOnCommit) {
+      await this.runGit(["add", "-A"])
+    } else {
+      await this.runGit(["add", "-A", "--", ...selectedPaths])
+    }
+
+    const excluded = excludedPaths.map((path) => path.trim()).filter(Boolean)
+    if (excluded.length > 0) {
+      const stagedExcluded = await this.runGit(["diff", "--name-only", "--cached", "--", ...excluded], true)
+      const stagedExcludedPaths = stagedExcluded.stdout
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+      if (stagedExcludedPaths.length > 0) {
+        await this.runGit(["reset", "--", ...stagedExcludedPaths])
+      }
     }
 
     const hasStagedChanges = await this.runGit(["diff", "--cached", "--quiet"], true)
@@ -263,18 +295,4 @@ export class GitClient {
       throw error
     }
   }
-}
-
-function normalizeBranchName(input: string): string {
-  const normalized = input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9/]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/\/+/g, "/")
-    .replace(/\/-/g, "/")
-    .replace(/-\//g, "/")
-    .replace(/^[-/]+|[-/]+$/g, "")
-
-  return normalized
 }

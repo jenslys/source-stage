@@ -1,5 +1,6 @@
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 
+import type { StageConfig } from "./config"
 import { BranchDialog } from "./ui/components/branch-dialog"
 import { CommitHistoryDialog } from "./ui/components/commit-history-dialog"
 import { useGitTuiController } from "./hooks/use-git-tui-controller"
@@ -9,10 +10,14 @@ import { FooterBar } from "./ui/components/footer-bar"
 import { ShortcutsDialog } from "./ui/components/shortcuts-dialog"
 import { TopBar } from "./ui/components/top-bar"
 
-export function App() {
+type AppProps = {
+  config: StageConfig
+}
+
+export function App({ config }: AppProps) {
   const renderer = useRenderer()
   const { width: terminalWidth = 0, height: terminalHeight = 0 } = useTerminalDimensions()
-  const controller = useGitTuiController(renderer)
+  const controller = useGitTuiController(renderer, config)
 
   return (
     <box
@@ -25,6 +30,7 @@ export function App() {
     >
       <TopBar
         currentBranch={controller.currentBranch}
+        showShortcutsHint={config.ui.showShortcutsHint}
       />
 
       <DiffWorkspace
@@ -36,6 +42,7 @@ export function App() {
         diffText={controller.diffText}
         diffMessage={controller.diffMessage}
         diffFiletype={controller.diffFiletype}
+        diffView={config.ui.diffView}
       />
 
       <FooterBar

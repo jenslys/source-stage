@@ -10,6 +10,7 @@ type DiffWorkspaceProps = {
   diffText: string
   diffMessage: string | null
   diffFiletype: string | undefined
+  diffView: "unified" | "split"
 }
 
 export function DiffWorkspace({
@@ -21,6 +22,7 @@ export function DiffWorkspace({
   diffText,
   diffMessage,
   diffFiletype,
+  diffView,
 }: DiffWorkspaceProps) {
   const visibleRows = Math.max(1, terminalHeight - 6)
   const { start, end } = getVisibleRange(fileRows.length, fileIndex, visibleRows)
@@ -56,7 +58,7 @@ export function DiffWorkspace({
           <diff
             key={selectedFilePath ?? "no-selection"}
             diff={diffText}
-            view="unified"
+            view={diffView}
             filetype={diffFiletype}
             syntaxStyle={DIFF_SYNTAX_STYLE}
             showLineNumbers={true}

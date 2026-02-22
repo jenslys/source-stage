@@ -19,7 +19,7 @@ Most Git TUIs are feature-heavy. `source-stage` focuses on a smaller, cleaner wo
 ## Features
 
 - Minimal black UI with syntax-highlighted diff rendering
-- Unified diff mode with whitespace-only changes hidden
+- Configurable diff mode (`unified` or `split`) with optional whitespace filtering
 - File-level include/exclude for commits (auto-stage + selective unstage)
 - Fullscreen branch flow:
   - checkout branch
@@ -48,6 +48,34 @@ If installed as a CLI via `bin`, launch with:
 ```bash
 stage
 ```
+
+## Configuration
+
+`stage` loads config in this exact order:
+
+1. `STAGE_CONFIG` (explicit path; fails if the file does not exist)
+2. `./.stage-manager.toml` (repo-local override for development)
+3. `${XDG_CONFIG_HOME:-~/.config}/stage-manager/config.toml` (user config for installed usage)
+4. built-in defaults
+
+Example:
+
+```toml
+[ui]
+diff_view = "unified"                # "unified" | "split"
+hide_whitespace_changes = true
+show_shortcuts_hint = true
+
+[history]
+limit = 200
+
+[git]
+auto_stage_on_commit = true
+```
+
+`auto_stage_on_commit` controls commit staging behavior:
+- `true`: files start selected; commit stages all changes, then unstages files you unchecked.
+- `false`: files start unselected; commit stages only files you explicitly checked.
 
 ## Core Shortcuts
 

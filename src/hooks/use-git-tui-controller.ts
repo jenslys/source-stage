@@ -1,6 +1,7 @@
 import type { InputRenderable, TextareaRenderable } from "@opentui/core"
 import { useCallback, useMemo, useRef, useState } from "react"
 
+import type { StageConfig } from "../config"
 import { GitClient, type RepoSnapshot } from "../git"
 import { type FocusTarget, type TopAction } from "../ui/types"
 import { buildFileRow, formatTrackingSummary, inferFiletype } from "../ui/utils"
@@ -18,7 +19,7 @@ type RendererLike = {
   destroy: () => void
 }
 
-export function useGitTuiController(renderer: RendererLike) {
+export function useGitTuiController(renderer: RendererLike, config: StageConfig) {
   const branchNameRef = useRef<InputRenderable>(null)
   const summaryRef = useRef<InputRenderable>(null)
   const descriptionRef = useRef<TextareaRenderable>(null)
@@ -49,6 +50,14 @@ export function useGitTuiController(renderer: RendererLike) {
   const fileRows = useMemo(
     () => (snapshot?.files ?? []).map((file) => buildFileRow(file, excludedPaths)),
     [excludedPaths, snapshot],
+  )
+  const gitOptions = useMemo(
+    () => ({
+      hideWhitespaceChanges: config.ui.hideWhitespaceChanges,
+      historyLimit: config.history.limit,
+      autoStageOnCommit: config.git.autoStageOnCommit,
+    }),
+    [config.git.autoStageOnCommit, config.history.limit, config.ui.hideWhitespaceChanges],
   )
 
   const refreshSnapshot = useCallback(async (): Promise<void> => {
@@ -126,9 +135,12 @@ export function useGitTuiController(renderer: RendererLike) {
     if (!git) return
     const effectiveSummary = summaryRef.current?.value ?? summary
     const description = descriptionRef.current?.plainText ?? ""
+    const includedPaths = (snapshot?.files ?? [])
+      .map((file) => file.path)
+      .filter((path) => !excludedPaths.has(path))
 
     await runTask("COMMIT", async () => {
-      await git.commit(effectiveSummary, description, Array.from(excludedPaths))
+      await git.commit(effectiveSummary, description, Array.from(excludedPaths), includedPaths)
       setSummary("")
       setDescriptionRenderKey((value) => value + 1)
       setCommitDialogOpen(false)
@@ -136,7 +148,7 @@ export function useGitTuiController(renderer: RendererLike) {
       setExcludedPaths(new Set())
       await refreshSnapshot()
     })
-  }, [excludedPaths, git, refreshSnapshot, runTask, summary])
+  }, [excludedPaths, git, refreshSnapshot, runTask, snapshot, summary])
 
   const branchDialog = useBranchDialogController({
     git,
@@ -153,9 +165,15 @@ export function useGitTuiController(renderer: RendererLike) {
     setFocus,
   })
 
-  useGitInitialization({ setGit, setFatalError, setStatusMessage })
+  useGitInitialization({ setGit, setFatalError, setStatusMessage, gitOptions })
   useGitSnapshotPolling({ git, refreshSnapshot, setStatusMessage })
-  useSnapshotSelectionSync({ snapshot, fileIndex, setFileIndex, setExcludedPaths })
+  useSnapshotSelectionSync({
+    snapshot,
+    fileIndex,
+    setFileIndex,
+    setExcludedPaths,
+    autoStageOnCommit: config.git.autoStageOnCommit,
+  })
   useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessage })
 
   const toggleSelectedFileInCommit = useCallback(() => {
