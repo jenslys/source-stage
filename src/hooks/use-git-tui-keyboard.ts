@@ -6,14 +6,19 @@ import { COMMIT_FOCUS_ORDER, MAIN_FOCUS_ORDER, type FocusTarget, type TopAction 
 type UseGitTuiKeyboardParams = {
   renderer: { destroy: () => void }
   commitDialogOpen: boolean
-  createBranchDialogOpen: boolean
+  branchDialogOpen: boolean
+  branchDialogMode: "select" | "create" | "confirm"
   setCommitDialogOpen: Dispatch<SetStateAction<boolean>>
   setFocus: Dispatch<SetStateAction<FocusTarget>>
   focus: FocusTarget
   fileCount: number
   moveToPreviousFile: () => void
   moveToNextFile: () => void
-  closeCreateBranchDialog: () => void
+  openBranchDialog: () => void
+  closeBranchDialog: () => void
+  showBranchDialogList: () => void
+  submitBranchSelection: () => Promise<void>
+  submitBranchStrategy: () => Promise<void>
   commitChanges: () => Promise<void>
   createBranchAndCheckout: () => Promise<void>
   runTopAction: (action: TopAction) => Promise<void>
@@ -23,14 +28,19 @@ type UseGitTuiKeyboardParams = {
 export function useGitTuiKeyboard({
   renderer,
   commitDialogOpen,
-  createBranchDialogOpen,
+  branchDialogOpen,
+  branchDialogMode,
   setCommitDialogOpen,
   setFocus,
   focus,
   fileCount,
   moveToPreviousFile,
   moveToNextFile,
-  closeCreateBranchDialog,
+  openBranchDialog,
+  closeBranchDialog,
+  showBranchDialogList,
+  submitBranchSelection,
+  submitBranchStrategy,
   commitChanges,
   createBranchAndCheckout,
   runTopAction,
@@ -38,12 +48,18 @@ export function useGitTuiKeyboard({
 }: UseGitTuiKeyboardParams) {
   useKeyboard((key) => {
     const isEnter = key.name === "return" || key.name === "linefeed"
-    const isDialogOpen = commitDialogOpen || createBranchDialogOpen
+    const isDialogOpen = commitDialogOpen || branchDialogOpen
 
-    if (createBranchDialogOpen && isEnter) {
+    if (branchDialogOpen && isEnter) {
       key.preventDefault()
       key.stopPropagation()
-      void createBranchAndCheckout()
+      if (branchDialogMode === "create") {
+        void createBranchAndCheckout()
+      } else if (branchDialogMode === "confirm") {
+        void submitBranchStrategy()
+      } else {
+        void submitBranchSelection()
+      }
       return
     }
 
@@ -55,8 +71,12 @@ export function useGitTuiKeyboard({
     }
 
     if (key.name === "escape") {
-      if (createBranchDialogOpen) {
-        closeCreateBranchDialog()
+      if (branchDialogOpen) {
+        if (branchDialogMode === "select") {
+          closeBranchDialog()
+        } else {
+          showBranchDialogList()
+        }
         return
       }
       if (commitDialogOpen) {
@@ -71,8 +91,8 @@ export function useGitTuiKeyboard({
     if (key.name === "tab") {
       key.preventDefault()
       key.stopPropagation()
-      if (createBranchDialogOpen) {
-        setFocus("branch-create")
+      if (branchDialogOpen) {
+        setFocus(branchDialogMode === "create" ? "branch-create" : "branch-dialog-list")
         return
       }
       const order = commitDialogOpen ? COMMIT_FOCUS_ORDER : MAIN_FOCUS_ORDER
@@ -96,7 +116,7 @@ export function useGitTuiKeyboard({
     if (!isDialogOpen && key.name === "b") {
       key.preventDefault()
       key.stopPropagation()
-      setFocus("branch")
+      openBranchDialog()
       return
     }
 
@@ -169,6 +189,7 @@ export function useGitTuiKeyboard({
       void runTopAction("push")
       return
     }
+
     if (key.ctrl && key.name === "return") {
       key.preventDefault()
       key.stopPropagation()

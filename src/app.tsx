@@ -22,12 +22,7 @@ export function App() {
       }}
     >
       <TopBar
-        branchOptions={controller.branchOptions}
-        branchOptionsKey={controller.branchOptionsKey}
-        branchIndex={controller.branchIndex}
-        focus={controller.focus}
-        onBranchChange={controller.onBranchChange}
-        onBranchSelect={controller.onBranchSelect}
+        currentBranch={controller.currentBranch}
       />
 
       <DiffWorkspace
@@ -50,8 +45,17 @@ export function App() {
       />
 
       <BranchDialog
-        open={controller.createBranchDialogOpen}
+        open={controller.branchDialogOpen}
+        mode={controller.branchDialogMode}
         focus={controller.focus}
+        currentBranch={controller.currentBranch}
+        branchOptions={controller.branchOptions}
+        branchOptionsKey={controller.branchOptionsKey}
+        branchIndex={controller.branchIndex}
+        onBranchChange={controller.onBranchDialogChange}
+        branchStrategyOptions={controller.branchStrategyOptions}
+        branchStrategyIndex={controller.branchStrategyIndex}
+        onBranchStrategyChange={controller.onBranchStrategyChange}
         branchName={controller.newBranchName}
         branchNameRef={controller.branchNameRef}
         onBranchNameInput={controller.onBranchNameInput}

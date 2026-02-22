@@ -1,9 +1,10 @@
-import type { InputRenderable, SelectOption, TextareaRenderable } from "@opentui/core"
+import type { InputRenderable, TextareaRenderable } from "@opentui/core"
 import { useCallback, useMemo, useRef, useState } from "react"
 
 import { GitClient, type RepoSnapshot } from "../git"
 import { type FocusTarget, type TopAction } from "../ui/types"
 import { buildFileRow, inferFiletype } from "../ui/utils"
+import { useBranchDialogController } from "./use-branch-dialog-controller"
 import {
   useFileDiffLoader,
   useGitInitialization,
@@ -16,8 +17,6 @@ type RendererLike = {
   destroy: () => void
 }
 
-const CREATE_BRANCH_VALUE = "__create_branch__"
-
 export function useGitTuiController(renderer: RendererLike) {
   const branchNameRef = useRef<InputRenderable>(null)
   const summaryRef = useRef<InputRenderable>(null)
@@ -28,7 +27,6 @@ export function useGitTuiController(renderer: RendererLike) {
   const [fatalError, setFatalError] = useState<string | null>(null)
 
   const [focus, setFocus] = useState<FocusTarget>("files")
-  const [branchIndex, setBranchIndex] = useState(0)
   const [fileIndex, setFileIndex] = useState(0)
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(new Set())
 
@@ -36,36 +34,20 @@ export function useGitTuiController(renderer: RendererLike) {
   const [descriptionRenderKey, setDescriptionRenderKey] = useState(0)
   const [diffText, setDiffText] = useState("")
   const [diffMessage, setDiffMessage] = useState<string | null>("No file selected")
-  const [createBranchDialogOpen, setCreateBranchDialogOpen] = useState(false)
-  const [newBranchName, setNewBranchName] = useState("")
-  const [commitDialogOpen, setCommitDialogOpen] = useState(false)
 
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState("Initializing...")
 
   const isBusy = busy !== null
-
-  const branchOptions = useMemo<SelectOption[]>(
-    () => [
-      ...(snapshot?.branches ?? []).map((branch) => ({
-        name: branch,
-        description: branch === snapshot?.branch ? "Current branch" : "Checkout branch",
-        value: branch,
-      })),
-      { name: "+ create new branch...", description: "Create and checkout", value: CREATE_BRANCH_VALUE },
-    ],
-    [snapshot],
-  )
-
-  const fileRows = useMemo(() => (snapshot?.files ?? []).map((file) => buildFileRow(file, excludedPaths)), [excludedPaths, snapshot])
-  const branchOptionsKey = useMemo(
-    () => branchOptions.map((option) => String(option.value)).join("|"),
-    [branchOptions],
-  )
-
   const selectedFile = snapshot?.files[fileIndex] ?? null
   const selectedFilePath = selectedFile?.path ?? null
   const diffFiletype = inferFiletype(selectedFile?.path)
+
+  const fileRows = useMemo(
+    () => (snapshot?.files ?? []).map((file) => buildFileRow(file, excludedPaths)),
+    [excludedPaths, snapshot],
+  )
 
   const refreshSnapshot = useCallback(async (): Promise<void> => {
     if (!git) return
@@ -74,16 +56,18 @@ export function useGitTuiController(renderer: RendererLike) {
   }, [git])
 
   const runTask = useCallback(
-    async (label: string, task: () => Promise<void>): Promise<void> => {
-      if (isBusy) return
+    async (label: string, task: () => Promise<void>): Promise<boolean> => {
+      if (isBusy) return false
       setBusy(label)
       setStatusMessage(`${label}...`)
       try {
         await task()
         setStatusMessage(`${label} complete`)
+        return true
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         setStatusMessage(`Error: ${message}`)
+        return false
       } finally {
         setBusy(null)
       }
@@ -138,36 +122,18 @@ export function useGitTuiController(renderer: RendererLike) {
     })
   }, [excludedPaths, git, refreshSnapshot, runTask, summary])
 
-  const openCreateBranchDialog = useCallback(() => {
-    setCreateBranchDialogOpen(true)
-    setNewBranchName("")
-    setFocus("branch-create")
-  }, [])
-
-  const closeCreateBranchDialog = useCallback(() => {
-    setCreateBranchDialogOpen(false)
-    setNewBranchName("")
-    setFocus("branch")
-    if (!snapshot) return
-    const currentBranchIndex = snapshot.branches.findIndex((branch) => branch === snapshot.branch)
-    if (currentBranchIndex >= 0) {
-      setBranchIndex(currentBranchIndex)
-    }
-  }, [snapshot])
-
-  const createBranchAndCheckout = useCallback(async (): Promise<void> => {
-    if (!git) return
-    const branchName = branchNameRef.current?.value ?? newBranchName
-    await runTask("CREATE BRANCH", async () => {
-      await git.createAndCheckoutBranch(branchName)
-      closeCreateBranchDialog()
-      await refreshSnapshot()
-    })
-  }, [closeCreateBranchDialog, git, newBranchName, refreshSnapshot, runTask])
+  const branchDialog = useBranchDialogController({
+    git,
+    snapshot,
+    refreshSnapshot,
+    runTask,
+    setFocus,
+    branchNameRef,
+  })
 
   useGitInitialization({ setGit, setFatalError, setStatusMessage })
   useGitSnapshotPolling({ git, refreshSnapshot, setStatusMessage })
-  useSnapshotSelectionSync({ snapshot, fileIndex, setFileIndex, branchIndex, setBranchIndex, setExcludedPaths })
+  useSnapshotSelectionSync({ snapshot, fileIndex, setFileIndex, setExcludedPaths })
   useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessage })
 
   const toggleSelectedFileInCommit = useCallback(() => {
@@ -186,36 +152,24 @@ export function useGitTuiController(renderer: RendererLike) {
   useGitTuiKeyboard({
     renderer,
     commitDialogOpen,
-    createBranchDialogOpen,
+    branchDialogOpen: branchDialog.branchDialogOpen,
+    branchDialogMode: branchDialog.branchDialogMode,
     setCommitDialogOpen,
     setFocus,
     focus,
     fileCount: snapshot?.files.length ?? 0,
     moveToPreviousFile: () => setFileIndex((current) => getPreviousIndex(current, snapshot?.files.length ?? 0)),
     moveToNextFile: () => setFileIndex((current) => getNextIndex(current, snapshot?.files.length ?? 0)),
-    closeCreateBranchDialog,
+    openBranchDialog: branchDialog.openBranchDialog,
+    closeBranchDialog: branchDialog.closeBranchDialog,
+    showBranchDialogList: branchDialog.showBranchDialogList,
+    submitBranchSelection: branchDialog.submitBranchSelection,
+    submitBranchStrategy: branchDialog.submitBranchStrategy,
     commitChanges,
-    createBranchAndCheckout,
+    createBranchAndCheckout: branchDialog.createBranchAndCheckout,
     runTopAction,
     toggleSelectedFileInCommit,
   })
-
-  const onBranchSelect = useCallback(
-    (index: number, option: SelectOption | null) => {
-      setBranchIndex(index)
-      const optionValue = typeof option?.value === "string" ? option.value : option?.name
-      if (optionValue === CREATE_BRANCH_VALUE) {
-        openCreateBranchDialog()
-        return
-      }
-      if (!git || !snapshot || !optionValue || optionValue === snapshot.branch) return
-      void runTask(`CHECKOUT ${optionValue}`, async () => {
-        await git.checkout(optionValue)
-        await refreshSnapshot()
-      })
-    },
-    [git, openCreateBranchDialog, refreshSnapshot, runTask, snapshot],
-  )
 
   const topStatus = snapshot
     ? `${snapshot.branch}${snapshot.upstream ? ` -> ${snapshot.upstream}` : ""}  ahead:${snapshot.ahead} behind:${snapshot.behind}`
@@ -225,18 +179,15 @@ export function useGitTuiController(renderer: RendererLike) {
     summaryRef,
     descriptionRef,
     focus,
+    currentBranch: snapshot?.branch ?? "...",
     branchNameRef,
-    branchOptions,
-    branchOptionsKey,
-    branchIndex,
+    ...branchDialog,
     fileRows,
     fileIndex,
     selectedFilePath,
     diffText,
     diffMessage,
     diffFiletype,
-    createBranchDialogOpen,
-    newBranchName,
     commitDialogOpen,
     summary,
     descriptionRenderKey,
@@ -244,9 +195,6 @@ export function useGitTuiController(renderer: RendererLike) {
     fatalError,
     isBusy,
     topStatus,
-    onBranchChange: setBranchIndex,
-    onBranchSelect,
-    onBranchNameInput: setNewBranchName,
     onSummaryInput: setSummary,
   }
 }

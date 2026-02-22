@@ -74,8 +74,6 @@ type UseSnapshotSelectionSyncParams = {
   snapshot: RepoSnapshot | null
   fileIndex: number
   setFileIndex: SetNumber
-  branchIndex: number
-  setBranchIndex: SetNumber
   setExcludedPaths: SetExcludedPaths
 }
 
@@ -83,8 +81,6 @@ export function useSnapshotSelectionSync({
   snapshot,
   fileIndex,
   setFileIndex,
-  branchIndex,
-  setBranchIndex,
   setExcludedPaths,
 }: UseSnapshotSelectionSyncParams) {
   useEffect(() => {
@@ -98,10 +94,7 @@ export function useSnapshotSelectionSync({
 
     const nextFileIndex = Math.min(fileIndex, Math.max(snapshot.files.length - 1, 0))
     if (nextFileIndex !== fileIndex) setFileIndex(nextFileIndex)
-
-    const nextBranchIndex = snapshot.branches.findIndex((branch) => branch === snapshot.branch)
-    if (nextBranchIndex >= 0 && nextBranchIndex !== branchIndex) setBranchIndex(nextBranchIndex)
-  }, [branchIndex, fileIndex, setBranchIndex, setExcludedPaths, setFileIndex, snapshot])
+  }, [fileIndex, setExcludedPaths, setFileIndex, snapshot])
 }
 
 type UseFileDiffLoaderParams = {
