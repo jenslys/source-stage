@@ -4,7 +4,11 @@ import type { Dispatch, SetStateAction } from "react"
 import { COMMIT_FOCUS_ORDER, MAIN_FOCUS_ORDER, type FocusTarget, type TopAction } from "../ui/types"
 
 type UseGitTuiKeyboardParams = {
-  renderer: { destroy: () => void }
+  renderer: {
+    destroy: () => void
+    getSelection?: () => { getSelectedText: () => string } | null
+    copyToClipboardOSC52?: (text: string) => boolean
+  }
   commitDialogOpen: boolean
   branchDialogOpen: boolean
   branchDialogMode: "select" | "create" | "confirm"
@@ -71,10 +75,21 @@ export function useGitTuiKeyboard({
   useKeyboard((key) => {
     const hasNonShiftModifier = key.ctrl || key.meta || key.option || key.super || key.hyper
     const isPlainShortcutKey = !hasNonShiftModifier
+    const isMetaCopy = (key.meta || key.super) && !key.ctrl && !key.option && !key.hyper && key.name === "c"
     const isHelpKey = isPlainShortcutKey && (key.name === "?" || ((key.name === "/" || key.name === "slash") && key.shift))
     const isSpaceKey = key.name === "space" || key.name === " "
     const isEnter = key.name === "return" || key.name === "linefeed"
     const isDialogOpen = commitDialogOpen || branchDialogOpen || historyDialogOpen || shortcutsDialogOpen
+
+    if (isMetaCopy) {
+      const selectedText = renderer.getSelection?.()?.getSelectedText?.()
+      if (selectedText && selectedText.length > 0) {
+        renderer.copyToClipboardOSC52?.(selectedText)
+        key.preventDefault()
+        key.stopPropagation()
+        return
+      }
+    }
 
     if (!commitDialogOpen && !branchDialogOpen && !historyDialogOpen && isHelpKey) {
       key.preventDefault()
