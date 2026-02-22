@@ -1,8 +1,14 @@
 {
-  "name": "github-tui",
+  "name": "stage-manager",
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "stage": "./bin/stage"
+  },
+  "scripts": {
+    "stage": "bun run index.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/react": "^19.2.14"
