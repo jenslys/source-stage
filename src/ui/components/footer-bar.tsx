@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react"
+
 import { fitFooterStatusLine } from "../utils"
 
 type FooterBarProps = {
@@ -8,9 +10,28 @@ type FooterBarProps = {
   isBusy: boolean
 }
 
+const SPINNER_FRAMES = "⣾⣽⣻⢿⡿⣟⣯⣷"
+
 export function FooterBar({ statusMessage, topStatus, terminalWidth, fatalError, isBusy }: FooterBarProps) {
+  const [spinnerIndex, setSpinnerIndex] = useState(0)
+
+  useEffect(() => {
+    if (!isBusy) {
+      setSpinnerIndex(0)
+      return
+    }
+
+    const timer = setInterval(() => {
+      setSpinnerIndex((current) => (current + 1) % SPINNER_FRAMES.length)
+    }, 90)
+
+    return () => clearInterval(timer)
+  }, [isBusy])
+
+  const busyPrefix = isBusy ? `${SPINNER_FRAMES[spinnerIndex]} ` : ""
+  const statusWithSpinner = `${busyPrefix}${statusMessage}`
   const footerInnerWidth = Math.max(terminalWidth - 2, 0)
-  const footerLine = fitFooterStatusLine(statusMessage, topStatus, footerInnerWidth)
+  const footerLine = fitFooterStatusLine(statusWithSpinner, topStatus, footerInnerWidth)
 
   return (
     <box style={{ height: 1, paddingLeft: 1, paddingRight: 1 }}>
