@@ -1,15 +1,15 @@
 {
   "name": "stage-tui",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Minimalist TUI Git client",
   "author": "jenslys",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jenslys/source-stage.git"
+    "url": "https://github.com/jenslys/stage.git"
   },
-  "homepage": "https://github.com/jenslys/source-stage",
+  "homepage": "https://github.com/jenslys/stage",
   "bugs": {
-    "url": "https://github.com/jenslys/source-stage/issues"
+    "url": "https://github.com/jenslys/stage/issues"
   },
   "module": "index.ts",
   "type": "module",
