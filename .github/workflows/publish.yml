@@ -68,11 +68,12 @@ jobs:
           echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
 
       - name: Skip when version is unchanged
-        if: steps.version.outputs.changed != 'true'
-        run: echo "Version unchanged: ${{ steps.version.outputs.old }} -> ${{ steps.version.outputs.new }}. Skipping publish."
+        if: ${{ steps.version.outputs.changed != 'true' }}
+        run: |
+          echo "Version unchanged: ${{ steps.version.outputs.old }} -> ${{ steps.version.outputs.new }}. Skipping publish."
 
       - name: Check if version already exists on npm
-        if: steps.version.outputs.changed == 'true'
+        if: ${{ steps.version.outputs.changed == 'true' }}
         id: npm-check
         run: |
           if npm view "${{ steps.version.outputs.name }}@${{ steps.version.outputs.new }}" version >/dev/null 2>&1; then
@@ -83,15 +84,15 @@ jobs:
           fi
 
       - name: Install dependencies
-        if: steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true'
+        if: ${{ steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true' }}
         run: bun install --frozen-lockfile
 
       - name: Verify types
-        if: steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true'
+        if: ${{ steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true' }}
         run: bunx tsc --noEmit
 
       - name: Publish to npm
-        if: steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true'
+        if: ${{ steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true' }}
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
