@@ -1,6 +1,8 @@
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 
+import { ensureUserConfigFile } from "./config-file"
+
 export type StageConfig = {
   ui: {
     diffView: "unified" | "split"
@@ -87,9 +89,11 @@ export async function loadStageConfig(cwd: string): Promise<ResolvedStageConfig>
     }
   }
 
+  await ensureUserConfigFile(userPath, DEFAULT_STAGE_CONFIG)
+  const createdRaw = await Bun.file(userPath).text()
   return {
-    config: cloneConfig(DEFAULT_STAGE_CONFIG),
-    source: "defaults",
+    config: parseStageConfigToml(createdRaw, userPath),
+    source: userPath,
   }
 }
 

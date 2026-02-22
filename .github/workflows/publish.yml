@@ -1,0 +1,97 @@
+name: Publish Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - bun.lock
+      - bin/stage
+      - index.ts
+      - src/**
+      - README.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-stage
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node (npm publish)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Determine version change
+        id: version
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name || ''")
+          NEW_VERSION=$(node -p "require('./package.json').version || ''")
+          OLD_VERSION=""
+          CHANGED="false"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            CHANGED="true"
+          else
+            BEFORE_SHA="${{ github.event.before }}"
+            if [ -n "$BEFORE_SHA" ] && git cat-file -e "${BEFORE_SHA}:package.json" 2>/dev/null; then
+              OLD_VERSION=$(git show "${BEFORE_SHA}:package.json" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).version||'')}catch{console.log('')}})")
+            fi
+
+            if [ -n "$NEW_VERSION" ] && [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
+              CHANGED="true"
+            fi
+          fi
+
+          echo "name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "old=${OLD_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "new=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip when version is unchanged
+        if: steps.version.outputs.changed != 'true'
+        run: echo "Version unchanged: ${{ steps.version.outputs.old }} -> ${{ steps.version.outputs.new }}. Skipping publish."
+
+      - name: Check if version already exists on npm
+        if: steps.version.outputs.changed == 'true'
+        id: npm-check
+        run: |
+          if npm view "${{ steps.version.outputs.name }}@${{ steps.version.outputs.new }}" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Version already published on npm. Skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install dependencies
+        if: steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Verify types
+        if: steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true'
+        run: bunx tsc --noEmit
+
+      - name: Publish to npm
+        if: steps.version.outputs.changed == 'true' && steps.npm-check.outputs.exists != 'true'
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

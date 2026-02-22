@@ -1,66 +1,94 @@
 # Source Stage
 
-`source-stage` is an opinionated Git TUI client built with `@opentui/core` and `@opentui/react`.
+Source Stage is an opinionated Git TUI focused on one thing: a clean, fast commit workflow.
+
+Inspired by GitHub Desktop, built for terminal users.
 
 <video src="https://github.com/user-attachments/assets/5f61e323-bb5e-4b11-9352-182d1a884feb" controls></video>
 
-It is heavily inspired by the simplicity of GitHub Desktop:
+## Why Source Stage
 
-- minimal UI
-- fast branch/commit workflows
-- clear diff-first experience
-
-## Why
-
-Most Git TUIs are feature-heavy. `source-stage` focuses on a smaller, cleaner workflow:
-
-- see changes quickly
-- inspect diffs clearly
-- commit and sync without leaving the terminal
-
-## Features
-
-- Minimal black UI with syntax-highlighted diff rendering
-- Configurable diff mode (`unified` or `split`) with optional whitespace filtering
-- File-level include/exclude for commits (auto-stage + selective unstage)
-- Fullscreen branch flow:
-  - checkout branch
-  - create branch
-  - choose whether to bring or leave working changes
-- Fullscreen commit history:
-  - checkout commit
-  - revert commit
-- Fetch / pull / push actions with fail-fast guardrails
-- Shortcut overlay (`?`) to keep default UI clean
+- Minimal interface, diff-first workflow
+- Fast branch switching and commit flow
+- Auto-stage with per-file include/exclude
+- Built-in AI commit message mode (optional)
 
 ## Install
 
-```bash
-bun install
-```
+Prerequisite: [Bun](https://bun.sh)
 
-## Run
+Global install:
 
 ```bash
-bun run stage
+bun add -g source-stage
 ```
 
-If installed as a CLI via `bin`, launch with:
+Run:
 
 ```bash
 stage
 ```
 
-## Configuration
+From source:
 
-`stage` loads config in this exact order:
+```bash
+git clone https://github.com/jenslys/source-stage.git
+cd source-stage
+bun install
+bun run stage
+```
 
-1. `STAGE_CONFIG` (explicit path; fails if the file does not exist)
-2. `./.stage-manager.toml` (repo-local override for development)
-3. `${XDG_CONFIG_HOME:-~/.config}/stage-manager/config.toml` (user config for installed usage)
-4. built-in defaults
+<details>
+<summary>Configuration</summary>
 
-Example:
+Config file location:
+
+- `${XDG_CONFIG_HOME:-~/.config}/stage-manager/config.toml`
+
+Source Stage auto-creates this file with the full default config on first launch.
+
+Optional overrides:
+
+- `STAGE_CONFIG=/path/to/config.toml`
+- `./.stage-manager.toml` (repo-local)
+
+Behavior notes:
+
+- `auto_stage_on_commit = true`: files start selected.
+- `auto_stage_on_commit = false`: files start unselected.
+- `ai.enabled = true`: `c` generates a conventional commit subject and auto-commits.
+- If AI commit generation fails, Source Stage opens the normal commit dialog.
+
+</details>
+
+<details>
+<summary>Shortcuts</summary>
+
+- `?`: toggle shortcuts overlay
+- `b`: change branch
+- `h`: open commit history
+- `c`: open commit dialog (or AI auto-commit when enabled)
+- `space`: include/exclude selected file for commit
+- `↑ / ↓`: move file selection
+- `r`: refresh
+- `f`: fetch
+- `l`: pull
+- `p`: push
+- `esc`: close dialog (or exit from main view)
+
+</details>
+
+<details>
+<summary>Development</summary>
+
+- Install dependencies: `bun install`
+- Run app: `bun run stage`
+- Type check: `bunx tsc --noEmit`
+
+</details>
+
+<details>
+<summary>All Config Options (Defaults)</summary>
 
 ```toml
 [ui]
@@ -76,32 +104,12 @@ auto_stage_on_commit = true
 
 [ai]
 enabled = false
-provider = "cerebras"        # only supported provider for now
-api_key = ""                 # required when enabled = true
+provider = "cerebras"                # currently only supported provider
+api_key = ""                         # required when enabled = true
 model = "gpt-oss-120b"
-reasoning_effort = "low"     # "low" | "medium" | "high"
-max_files = 32               # number of changed files sent to the model
-max_chars_per_file = 4000    # per-file diff budget sent to the model
+reasoning_effort = "low"             # "low" | "medium" | "high"
+max_files = 32
+max_chars_per_file = 4000
 ```
 
-`auto_stage_on_commit` controls commit staging behavior:
-
-- `true`: files start selected; commit stages all changes, then unstages files you unchecked.
-- `false`: files start unselected; commit stages only files you explicitly checked.
-
-When `ai.enabled = true`, pressing `c` no longer opens the commit dialog.
-Instead, Stage generates a short conventional commit subject with Cerebras and commits immediately.
-
-## Core Shortcuts
-
-- `?`: toggle shortcuts overlay
-- `b`: open branch dialog
-- `h`: open commit history
-- `c`: open commit dialog (or AI auto-commit when enabled)
-- `space`: include/exclude selected file for commit
-- `↑ / ↓`: move file selection
-- `r`: refresh
-- `f`: fetch
-- `l`: pull
-- `p`: push
-- `esc`: close current dialog (or exit app from main view)
+</details>

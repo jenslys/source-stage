@@ -1,8 +1,28 @@
 {
   "name": "source-stage",
+  "version": "1.0.0",
+  "description": "Minimal git tui inspired by GitHub Desktop",
+  "author": "jenslys",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jenslys/source-stage.git"
+  },
+  "homepage": "https://github.com/jenslys/source-stage",
+  "bugs": {
+    "url": "https://github.com/jenslys/source-stage/issues"
+  },
   "module": "index.ts",
   "type": "module",
-  "private": true,
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "src",
+    "index.ts",
+    "README.md"
+  ],
   "bin": {
     "stage": "./bin/stage"
   },
