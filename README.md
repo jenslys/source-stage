@@ -1,4 +1,4 @@
-# source-stage
+# Source Stage
 
 `source-stage` is an opinionated Git TUI client built with `@opentui/core` and `@opentui/react`.
 
