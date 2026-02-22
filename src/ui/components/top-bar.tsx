@@ -39,7 +39,7 @@ export function TopBar({
         />
       </box>
       <box style={{ flexGrow: 1, justifyContent: "center" }}>
-        <text fg="#525252">[r] refresh   [f] fetch   [l] pull   [p] push   [c] commit</text>
+        <text fg="#525252">[b] change branch   [r] refresh   [f] fetch   [l] pull   [p] push   [c] commit   [u] include/exclude</text>
       </box>
     </box>
   )

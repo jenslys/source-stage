@@ -1,5 +1,6 @@
 import { useRenderer, useTerminalDimensions } from "@opentui/react"
 
+import { BranchDialog } from "./ui/components/branch-dialog"
 import { useGitTuiController } from "./hooks/use-git-tui-controller"
 import { CommitDialog } from "./ui/components/commit-dialog"
 import { DiffWorkspace } from "./ui/components/diff-workspace"
@@ -8,7 +9,7 @@ import { TopBar } from "./ui/components/top-bar"
 
 export function App() {
   const renderer = useRenderer()
-  const { width: terminalWidth = 0 } = useTerminalDimensions()
+  const { width: terminalWidth = 0, height: terminalHeight = 0 } = useTerminalDimensions()
   const controller = useGitTuiController(renderer)
 
   return (
@@ -30,14 +31,14 @@ export function App() {
       />
 
       <DiffWorkspace
-        fileOptions={controller.fileOptions}
-        fileOptionsKey={controller.fileOptionsKey}
+        fileRows={controller.fileRows}
         fileIndex={controller.fileIndex}
         selectedFilePath={controller.selectedFilePath}
         focus={controller.focus}
+        terminalHeight={terminalHeight}
         diffText={controller.diffText}
+        diffMessage={controller.diffMessage}
         diffFiletype={controller.diffFiletype}
-        onFileSelect={controller.onFileSelect}
       />
 
       <FooterBar
@@ -46,6 +47,14 @@ export function App() {
         terminalWidth={terminalWidth}
         fatalError={controller.fatalError}
         isBusy={controller.isBusy}
+      />
+
+      <BranchDialog
+        open={controller.createBranchDialogOpen}
+        focus={controller.focus}
+        branchName={controller.newBranchName}
+        branchNameRef={controller.branchNameRef}
+        onBranchNameInput={controller.onBranchNameInput}
       />
 
       <CommitDialog

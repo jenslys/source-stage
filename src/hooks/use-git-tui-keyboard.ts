@@ -6,22 +6,46 @@ import { COMMIT_FOCUS_ORDER, MAIN_FOCUS_ORDER, type FocusTarget, type TopAction 
 type UseGitTuiKeyboardParams = {
   renderer: { destroy: () => void }
   commitDialogOpen: boolean
+  createBranchDialogOpen: boolean
   setCommitDialogOpen: Dispatch<SetStateAction<boolean>>
   setFocus: Dispatch<SetStateAction<FocusTarget>>
+  focus: FocusTarget
+  fileCount: number
+  moveToPreviousFile: () => void
+  moveToNextFile: () => void
+  closeCreateBranchDialog: () => void
   commitChanges: () => Promise<void>
+  createBranchAndCheckout: () => Promise<void>
   runTopAction: (action: TopAction) => Promise<void>
+  toggleSelectedFileInCommit: () => void
 }
 
 export function useGitTuiKeyboard({
   renderer,
   commitDialogOpen,
+  createBranchDialogOpen,
   setCommitDialogOpen,
   setFocus,
+  focus,
+  fileCount,
+  moveToPreviousFile,
+  moveToNextFile,
+  closeCreateBranchDialog,
   commitChanges,
+  createBranchAndCheckout,
   runTopAction,
+  toggleSelectedFileInCommit,
 }: UseGitTuiKeyboardParams) {
   useKeyboard((key) => {
     const isEnter = key.name === "return" || key.name === "linefeed"
+    const isDialogOpen = commitDialogOpen || createBranchDialogOpen
+
+    if (createBranchDialogOpen && isEnter) {
+      key.preventDefault()
+      key.stopPropagation()
+      void createBranchAndCheckout()
+      return
+    }
 
     if (commitDialogOpen && isEnter) {
       key.preventDefault()
@@ -31,6 +55,10 @@ export function useGitTuiKeyboard({
     }
 
     if (key.name === "escape") {
+      if (createBranchDialogOpen) {
+        closeCreateBranchDialog()
+        return
+      }
       if (commitDialogOpen) {
         setCommitDialogOpen(false)
         setFocus("files")
@@ -43,6 +71,10 @@ export function useGitTuiKeyboard({
     if (key.name === "tab") {
       key.preventDefault()
       key.stopPropagation()
+      if (createBranchDialogOpen) {
+        setFocus("branch-create")
+        return
+      }
       const order = commitDialogOpen ? COMMIT_FOCUS_ORDER : MAIN_FOCUS_ORDER
       setFocus((current) => {
         const currentIndex = order.findIndex((item) => item === current)
@@ -53,11 +85,38 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!commitDialogOpen && key.name === "c") {
+    if (!isDialogOpen && key.name === "c") {
       key.preventDefault()
       key.stopPropagation()
       setCommitDialogOpen(true)
       setFocus("commit-summary")
+      return
+    }
+
+    if (!isDialogOpen && key.name === "b") {
+      key.preventDefault()
+      key.stopPropagation()
+      setFocus("branch")
+      return
+    }
+
+    if (!isDialogOpen && key.name === "u") {
+      key.preventDefault()
+      key.stopPropagation()
+      toggleSelectedFileInCommit()
+      return
+    }
+
+    if (!isDialogOpen && focus === "files" && fileCount > 0 && (key.name === "up" || key.name === "k")) {
+      key.preventDefault()
+      key.stopPropagation()
+      moveToPreviousFile()
+      return
+    }
+    if (!isDialogOpen && focus === "files" && fileCount > 0 && (key.name === "down" || key.name === "j")) {
+      key.preventDefault()
+      key.stopPropagation()
+      moveToNextFile()
       return
     }
 
@@ -86,25 +145,25 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!commitDialogOpen && key.name === "r") {
+    if (!isDialogOpen && key.name === "r") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("refresh")
       return
     }
-    if (!commitDialogOpen && key.name === "f") {
+    if (!isDialogOpen && key.name === "f") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("fetch")
       return
     }
-    if (!commitDialogOpen && key.name === "l") {
+    if (!isDialogOpen && key.name === "l") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("pull")
       return
     }
-    if (!commitDialogOpen && key.name === "p") {
+    if (!isDialogOpen && key.name === "p") {
       key.preventDefault()
       key.stopPropagation()
       void runTopAction("push")

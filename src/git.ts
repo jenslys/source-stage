@@ -3,7 +3,6 @@ type GitCommandResult = {
   stdout: string
   stderr: string
 }
-
 export type ChangedFile = {
   path: string
   indexStatus: string
@@ -80,8 +79,8 @@ export class GitClient {
 
   async diffForFile(path: string): Promise<string> {
     const [unstaged, staged] = await Promise.all([
-      this.runGit(["diff", "--", path], true),
-      this.runGit(["diff", "--cached", "--", path], true),
+      this.runGit(["diff", "-w", "--", path], true),
+      this.runGit(["diff", "--cached", "-w", "--", path], true),
     ])
 
     const sections: string[] = []
@@ -96,7 +95,7 @@ export class GitClient {
       return sections.join("\n\n")
     }
 
-    const untracked = await this.runGit(["diff", "--no-index", "--", "/dev/null", path], true)
+    const untracked = await this.runGit(["diff", "--no-index", "-w", "--", "/dev/null", path], true)
     if (untracked.stdout.trim()) {
       return `# Untracked\n${untracked.stdout.trimEnd()}`
     }
@@ -145,13 +144,33 @@ export class GitClient {
     await this.runGit(["checkout", branch])
   }
 
-  async commit(summary: string, description: string): Promise<void> {
+  async createAndCheckoutBranch(branchName: string): Promise<void> {
+    const name = branchName.trim()
+    if (!name) {
+      throw new Error("Branch name is required.")
+    }
+    const validation = await this.runGit(["check-ref-format", "--branch", name], true)
+    if (validation.code !== 0) {
+      throw new Error(`Invalid branch name: ${name}`)
+    }
+    await this.runGit(["checkout", "-b", name])
+  }
+
+  async commit(summary: string, description: string, excludedPaths: string[] = []): Promise<void> {
     const title = summary.trim()
     if (!title) {
       throw new Error("Commit summary is required.")
     }
 
     await this.runGit(["add", "-A"])
+    if (excludedPaths.length > 0) {
+      await this.runGit(["reset", "--", ...excludedPaths], true)
+    }
+
+    const hasStagedChanges = await this.runGit(["diff", "--cached", "--quiet"], true)
+    if (hasStagedChanges.code === 0) {
+      throw new Error("No files selected for commit.")
+    }
 
     const args = ["commit", "-m", title]
     if (description.trim()) {
@@ -250,7 +269,6 @@ function buildStatusLabel(indexStatus: string, worktreeStatus: string): string {
   if (indexStatus === "?" && worktreeStatus === "?") {
     return "untracked"
   }
-
   const parts: string[] = []
   if (indexStatus !== " ") {
     parts.push(`staged ${STATUS_NAME[indexStatus] ?? indexStatus}`)

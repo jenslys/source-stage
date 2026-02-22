@@ -1,16 +1,25 @@
 import type { InputRenderable, SelectOption, TextareaRenderable } from "@opentui/core"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 
 import { GitClient, type RepoSnapshot } from "../git"
 import { type FocusTarget, type TopAction } from "../ui/types"
-import { inferFiletype } from "../ui/utils"
+import { buildFileRow, inferFiletype } from "../ui/utils"
+import {
+  useFileDiffLoader,
+  useGitInitialization,
+  useGitSnapshotPolling,
+  useSnapshotSelectionSync,
+} from "./use-git-tui-effects"
 import { useGitTuiKeyboard } from "./use-git-tui-keyboard"
 
 type RendererLike = {
   destroy: () => void
 }
 
+const CREATE_BRANCH_VALUE = "__create_branch__"
+
 export function useGitTuiController(renderer: RendererLike) {
+  const branchNameRef = useRef<InputRenderable>(null)
   const summaryRef = useRef<InputRenderable>(null)
   const descriptionRef = useRef<TextareaRenderable>(null)
 
@@ -21,10 +30,14 @@ export function useGitTuiController(renderer: RendererLike) {
   const [focus, setFocus] = useState<FocusTarget>("files")
   const [branchIndex, setBranchIndex] = useState(0)
   const [fileIndex, setFileIndex] = useState(0)
+  const [excludedPaths, setExcludedPaths] = useState<Set<string>>(new Set())
 
   const [summary, setSummary] = useState("")
   const [descriptionRenderKey, setDescriptionRenderKey] = useState(0)
-  const [diffText, setDiffText] = useState("# No file selected")
+  const [diffText, setDiffText] = useState("")
+  const [diffMessage, setDiffMessage] = useState<string | null>("No file selected")
+  const [createBranchDialogOpen, setCreateBranchDialogOpen] = useState(false)
+  const [newBranchName, setNewBranchName] = useState("")
   const [commitDialogOpen, setCommitDialogOpen] = useState(false)
 
   const [busy, setBusy] = useState<string | null>(null)
@@ -33,34 +46,25 @@ export function useGitTuiController(renderer: RendererLike) {
   const isBusy = busy !== null
 
   const branchOptions = useMemo<SelectOption[]>(
-    () =>
-      (snapshot?.branches ?? []).map((branch) => ({
+    () => [
+      ...(snapshot?.branches ?? []).map((branch) => ({
         name: branch,
         description: branch === snapshot?.branch ? "Current branch" : "Checkout branch",
         value: branch,
       })),
+      { name: "+ create new branch...", description: "Create and checkout", value: CREATE_BRANCH_VALUE },
+    ],
     [snapshot],
   )
 
-  const fileOptions = useMemo<SelectOption[]>(
-    () =>
-      (snapshot?.files ?? []).map((file) => ({
-        name: `${file.indexStatus}${file.worktreeStatus} ${file.path}`,
-        description: file.statusLabel,
-        value: file.path,
-      })),
-    [snapshot],
-  )
+  const fileRows = useMemo(() => (snapshot?.files ?? []).map((file) => buildFileRow(file, excludedPaths)), [excludedPaths, snapshot])
   const branchOptionsKey = useMemo(
     () => branchOptions.map((option) => String(option.value)).join("|"),
     [branchOptions],
   )
-  const fileOptionsKey = useMemo(
-    () => fileOptions.map((option) => String(option.value)).join("|"),
-    [fileOptions],
-  )
 
   const selectedFile = snapshot?.files[fileIndex] ?? null
+  const selectedFilePath = selectedFile?.path ?? null
   const diffFiletype = inferFiletype(selectedFile?.path)
 
   const refreshSnapshot = useCallback(async (): Promise<void> => {
@@ -124,120 +128,94 @@ export function useGitTuiController(renderer: RendererLike) {
     const description = descriptionRef.current?.plainText ?? ""
 
     await runTask("COMMIT", async () => {
-      await git.commit(effectiveSummary, description)
+      await git.commit(effectiveSummary, description, Array.from(excludedPaths))
       setSummary("")
       setDescriptionRenderKey((value) => value + 1)
       setCommitDialogOpen(false)
       setFocus("files")
+      setExcludedPaths(new Set())
       await refreshSnapshot()
     })
-  }, [git, refreshSnapshot, runTask, summary])
+  }, [excludedPaths, git, refreshSnapshot, runTask, summary])
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function init(): Promise<void> {
-      try {
-        const client = await GitClient.create(process.cwd())
-        if (cancelled) return
-        setGit(client)
-        setFatalError(null)
-        setStatusMessage("Ready")
-      } catch (error) {
-        if (cancelled) return
-        const message = error instanceof Error ? error.message : String(error)
-        setFatalError(message)
-        setStatusMessage(`Error: ${message}`)
-      }
-    }
-
-    void init()
-    return () => {
-      cancelled = true
-    }
+  const openCreateBranchDialog = useCallback(() => {
+    setCreateBranchDialogOpen(true)
+    setNewBranchName("")
+    setFocus("branch-create")
   }, [])
 
-  useEffect(() => {
-    if (!git) return
-    let active = true
-
-    const sync = async () => {
-      if (!active) return
-      try {
-        await refreshSnapshot()
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        setStatusMessage(`Error: ${message}`)
-      }
-    }
-
-    void sync()
-    const timer = setInterval(() => void sync(), 4000)
-    return () => {
-      active = false
-      clearInterval(timer)
-    }
-  }, [git, refreshSnapshot])
-
-  useEffect(() => {
+  const closeCreateBranchDialog = useCallback(() => {
+    setCreateBranchDialogOpen(false)
+    setNewBranchName("")
+    setFocus("branch")
     if (!snapshot) return
-
-    const nextFileIndex = Math.min(fileIndex, Math.max(snapshot.files.length - 1, 0))
-    if (nextFileIndex !== fileIndex) setFileIndex(nextFileIndex)
-
-    const nextBranchIndex = snapshot.branches.findIndex((branch) => branch === snapshot.branch)
-    if (nextBranchIndex >= 0 && nextBranchIndex !== branchIndex) setBranchIndex(nextBranchIndex)
-  }, [branchIndex, fileIndex, snapshot])
-
-  useEffect(() => {
-    if (!git || !selectedFile) {
-      setDiffText("# No file selected")
-      return
+    const currentBranchIndex = snapshot.branches.findIndex((branch) => branch === snapshot.branch)
+    if (currentBranchIndex >= 0) {
+      setBranchIndex(currentBranchIndex)
     }
+  }, [snapshot])
 
-    let cancelled = false
-    setDiffText(`# Loading diff: ${selectedFile.path}`)
+  const createBranchAndCheckout = useCallback(async (): Promise<void> => {
+    if (!git) return
+    const branchName = branchNameRef.current?.value ?? newBranchName
+    await runTask("CREATE BRANCH", async () => {
+      await git.createAndCheckoutBranch(branchName)
+      closeCreateBranchDialog()
+      await refreshSnapshot()
+    })
+  }, [closeCreateBranchDialog, git, newBranchName, refreshSnapshot, runTask])
 
-    const loadDiff = async () => {
-      try {
-        const nextDiff = await git.diffForFile(selectedFile.path)
-        if (cancelled) return
-        setDiffText(nextDiff || `# No diff output for ${selectedFile.path}`)
-      } catch (error) {
-        if (cancelled) return
-        const message = error instanceof Error ? error.message : String(error)
-        setDiffText(`# Failed to load diff\n${message}`)
+  useGitInitialization({ setGit, setFatalError, setStatusMessage })
+  useGitSnapshotPolling({ git, refreshSnapshot, setStatusMessage })
+  useSnapshotSelectionSync({ snapshot, fileIndex, setFileIndex, branchIndex, setBranchIndex, setExcludedPaths })
+  useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessage })
+
+  const toggleSelectedFileInCommit = useCallback(() => {
+    if (!selectedFilePath) return
+    setExcludedPaths((current) => {
+      const next = new Set(current)
+      if (next.has(selectedFilePath)) {
+        next.delete(selectedFilePath)
+      } else {
+        next.add(selectedFilePath)
       }
-    }
-
-    void loadDiff()
-    return () => {
-      cancelled = true
-    }
-  }, [git, selectedFile])
+      return next
+    })
+  }, [selectedFilePath])
 
   useGitTuiKeyboard({
     renderer,
     commitDialogOpen,
+    createBranchDialogOpen,
     setCommitDialogOpen,
     setFocus,
+    focus,
+    fileCount: snapshot?.files.length ?? 0,
+    moveToPreviousFile: () => setFileIndex((current) => getPreviousIndex(current, snapshot?.files.length ?? 0)),
+    moveToNextFile: () => setFileIndex((current) => getNextIndex(current, snapshot?.files.length ?? 0)),
+    closeCreateBranchDialog,
     commitChanges,
+    createBranchAndCheckout,
     runTopAction,
+    toggleSelectedFileInCommit,
   })
 
   const onBranchSelect = useCallback(
     (index: number, option: SelectOption | null) => {
       setBranchIndex(index)
-      if (!git || !snapshot || !option?.name || option.name === snapshot.branch) return
-      void runTask(`CHECKOUT ${option.name}`, async () => {
-        await git.checkout(option.name)
+      const optionValue = typeof option?.value === "string" ? option.value : option?.name
+      if (optionValue === CREATE_BRANCH_VALUE) {
+        openCreateBranchDialog()
+        return
+      }
+      if (!git || !snapshot || !optionValue || optionValue === snapshot.branch) return
+      void runTask(`CHECKOUT ${optionValue}`, async () => {
+        await git.checkout(optionValue)
         await refreshSnapshot()
       })
     },
-    [git, refreshSnapshot, runTask, snapshot],
+    [git, openCreateBranchDialog, refreshSnapshot, runTask, snapshot],
   )
-
-  const onFileSelect = useCallback((index: number) => setFileIndex(index), [])
 
   const topStatus = snapshot
     ? `${snapshot.branch}${snapshot.upstream ? ` -> ${snapshot.upstream}` : ""}  ahead:${snapshot.ahead} behind:${snapshot.behind}`
@@ -247,15 +225,18 @@ export function useGitTuiController(renderer: RendererLike) {
     summaryRef,
     descriptionRef,
     focus,
+    branchNameRef,
     branchOptions,
     branchOptionsKey,
     branchIndex,
-    fileOptions,
-    fileOptionsKey,
+    fileRows,
     fileIndex,
-    selectedFilePath: selectedFile?.path ?? null,
+    selectedFilePath,
     diffText,
+    diffMessage,
     diffFiletype,
+    createBranchDialogOpen,
+    newBranchName,
     commitDialogOpen,
     summary,
     descriptionRenderKey,
@@ -265,7 +246,17 @@ export function useGitTuiController(renderer: RendererLike) {
     topStatus,
     onBranchChange: setBranchIndex,
     onBranchSelect,
-    onFileSelect,
+    onBranchNameInput: setNewBranchName,
     onSummaryInput: setSummary,
   }
+}
+
+function getNextIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return (current + 1) % total
+}
+
+function getPreviousIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return (current - 1 + total) % total
 }
