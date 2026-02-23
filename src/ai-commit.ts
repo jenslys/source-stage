@@ -206,6 +206,8 @@ async function buildCommitContext({
     `- removed_conditions: ${formatCueList(behaviorCues.removedConditions)}`,
     `- added_guards: ${formatCueList(behaviorCues.addedGuards)}`,
     `- removed_guards: ${formatCueList(behaviorCues.removedGuards)}`,
+    `- added_calls: ${formatCueList(behaviorCues.addedCalls)}`,
+    `- removed_calls: ${formatCueList(behaviorCues.removedCalls)}`,
     "",
     "Changed files:",
     fileLines.join("\n"),
@@ -476,16 +478,16 @@ function buildSystemPrompt(retry: boolean): string {
     "- if changes are in existing files/flows and no new surface is explicit, avoid feat.",
     "- adding compatibility or alternate paths for an existing workflow is usually fix.",
     "- feat requires introducing a meaningfully new workflow/surface to users.",
-    "- when conditions/guards are added to prevent unsafe or accidental behavior, this strongly indicates fix.",
+    "- when conditions/guards are added, this suggests fix type, but subject wording should focus on the primary user-visible behavior change.",
     "Style rules:",
     "- scope is optional and must be a lowercase noun token.",
     "- description is imperative, specific, concise, and starts lowercase.",
     "- description must read naturally after '<type>(<scope>):'.",
     `- keep the full subject line at or under ${COMMIT_SUBJECT_MAX_LENGTH} characters, including type/scope and punctuation.`,
-    "- for fix, phrase the user-visible failure prevented/resolved (often with 'when' or 'on').",
-    "- for fix, prefer describing the undesired side effect being prevented.",
-    "- for fix, prefer prevent/avoid/handle over enable/add.",
-    "- prefer concrete verbs: fix/prevent/handle/enable/avoid/normalize/simplify/refine.",
+    "- for fix, describe the primary user-visible correction first (what changed for users).",
+    "- if both guard edits and action/result edits exist, summarize action/result changes over guard mechanics.",
+    "- use prevent/avoid wording only when it is the clearest description of the user-visible correction.",
+    "- prefer concrete verbs: fix/prevent/handle/remap/retarget/align/rename/normalize/simplify/refine.",
     "- prefer user-visible behavior over internal API detail names.",
     "- avoid wording that names low-level implementation calls unless unavoidable.",
     "- avoid vague lead verbs like support, update, improve, change.",
@@ -633,6 +635,8 @@ type BehaviorCues = {
   removedConditions: string[]
   addedGuards: string[]
   removedGuards: string[]
+  addedCalls: string[]
+  removedCalls: string[]
 }
 
 function updateStatusSignals(signals: ContextSignals, file: ChangedFile | undefined): void {
@@ -709,6 +713,8 @@ function collectBehaviorCues(diff: string): BehaviorCues {
   const removedConditions = new Set<string>()
   const addedGuards = new Set<string>()
   const removedGuards = new Set<string>()
+  const addedCalls = new Set<string>()
+  const removedCalls = new Set<string>()
 
   for (const line of diff.split("\n")) {
     if (line.startsWith("+++")
@@ -746,6 +752,15 @@ function collectBehaviorCues(diff: string): BehaviorCues {
         removedGuards.add(guard)
       }
     }
+
+    const call = extractCallCue(content)
+    if (call) {
+      if (isAdded) {
+        addedCalls.add(call)
+      } else {
+        removedCalls.add(call)
+      }
+    }
   }
 
   return {
@@ -753,6 +768,8 @@ function collectBehaviorCues(diff: string): BehaviorCues {
     removedConditions: Array.from(removedConditions),
     addedGuards: Array.from(addedGuards),
     removedGuards: Array.from(removedGuards),
+    addedCalls: Array.from(addedCalls),
+    removedCalls: Array.from(removedCalls),
   }
 }
 
@@ -786,6 +803,21 @@ function extractGuardCue(line: string): string | null {
   return null
 }
 
+function extractCallCue(line: string): string | null {
+  const match = line.match(/([A-Za-z_$][A-Za-z0-9_$.]*)\(([^()]*)\)/)
+  if (!match) {
+    return null
+  }
+
+  const callee = (match[1] ?? "").trim()
+  if (!callee) {
+    return null
+  }
+  const args = (match[2] ?? "").replace(/\s+/g, " ").trim()
+  const compactArgs = args.length > 40 ? `${args.slice(0, 37).trimEnd()}...` : args
+  return normalizeCue(`${callee}(${compactArgs})`)
+}
+
 function normalizeCue(value: string): string {
   const compact = value.replace(/\s+/g, " ").trim()
   if (compact.length <= 72) {
@@ -799,6 +831,8 @@ function aggregateBehaviorCues(cuesList: BehaviorCues[]): BehaviorCues {
   const removedConditions = new Set<string>()
   const addedGuards = new Set<string>()
   const removedGuards = new Set<string>()
+  const addedCalls = new Set<string>()
+  const removedCalls = new Set<string>()
 
   for (const cues of cuesList) {
     for (const value of cues.addedConditions) {
@@ -813,6 +847,12 @@ function aggregateBehaviorCues(cuesList: BehaviorCues[]): BehaviorCues {
     for (const value of cues.removedGuards) {
       removedGuards.add(value)
     }
+    for (const value of cues.addedCalls) {
+      addedCalls.add(value)
+    }
+    for (const value of cues.removedCalls) {
+      removedCalls.add(value)
+    }
   }
 
   return {
@@ -820,6 +860,8 @@ function aggregateBehaviorCues(cuesList: BehaviorCues[]): BehaviorCues {
     removedConditions: Array.from(removedConditions),
     addedGuards: Array.from(addedGuards),
     removedGuards: Array.from(removedGuards),
+    addedCalls: Array.from(addedCalls),
+    removedCalls: Array.from(removedCalls),
   }
 }
 

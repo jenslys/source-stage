@@ -15,7 +15,7 @@ const renderer = await createCliRenderer({
   targetFps: 30,
   useMouse: true,
   useConsole: false,
-  exitOnCtrlC: false,
+  exitOnCtrlC: true,
   onDestroy: () => process.exit(0),
 })
 

@@ -255,15 +255,10 @@ export function useGitTuiKeyboard({
       return
     }
 
-    const canUseCommitShortcut = !branchDialogOpen && !historyDialogOpen && !shortcutsDialogOpen
-    if (canUseCommitShortcut && key.ctrl && key.name === "c") {
+    if (!isDialogOpen && isPlainShortcutKey && key.name === "c") {
       key.preventDefault()
       key.stopPropagation()
-      if (commitDialogOpen) {
-        void commitChanges()
-      } else {
-        openCommitDialog()
-      }
+      openCommitDialog()
       return
     }
 
