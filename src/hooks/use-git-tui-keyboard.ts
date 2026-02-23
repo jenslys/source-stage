@@ -255,10 +255,15 @@ export function useGitTuiKeyboard({
       return
     }
 
-    if (!isDialogOpen && isPlainShortcutKey && key.name === "c") {
+    const canUseCommitShortcut = !branchDialogOpen && !historyDialogOpen && !shortcutsDialogOpen
+    if (canUseCommitShortcut && key.ctrl && key.name === "c") {
       key.preventDefault()
       key.stopPropagation()
-      openCommitDialog()
+      if (commitDialogOpen) {
+        void commitChanges()
+      } else {
+        openCommitDialog()
+      }
       return
     }
 
@@ -308,12 +313,6 @@ export function useGitTuiKeyboard({
       void runTopAction("fetch")
       return
     }
-    if (!isDialogOpen && key.ctrl && key.name === "l") {
-      key.preventDefault()
-      key.stopPropagation()
-      void runTopAction("pull")
-      return
-    }
     if (!isDialogOpen && key.ctrl && key.name === "p") {
       key.preventDefault()
       key.stopPropagation()
@@ -333,16 +332,10 @@ export function useGitTuiKeyboard({
       void runTopAction("fetch")
       return
     }
-    if (!isDialogOpen && isPlainShortcutKey && key.name === "l") {
-      key.preventDefault()
-      key.stopPropagation()
-      void runTopAction("pull")
-      return
-    }
     if (!isDialogOpen && isPlainShortcutKey && key.name === "p") {
       key.preventDefault()
       key.stopPropagation()
-      void runTopAction("push")
+      void runTopAction("pull")
       return
     }
 

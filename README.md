@@ -97,13 +97,13 @@ max_tokens_per_file = 4000
 - `?`: toggle shortcuts overlay
 - `b`: change branch
 - `h`: open commit history
-- `c`: open commit dialog (or AI auto-commit when enabled)
+- `ctrl+c`: open commit dialog (or AI auto-commit when enabled)
 - `space`: include/exclude selected file for commit
 - `↑ / ↓`: move file selection
 - `r`: refresh
 - `f`: fetch
-- `l`: pull
-- `p`: push
+- `p`: pull
+- `ctrl+p`: push
 - `esc`: close dialog (or exit from main view)
 
 </details>
