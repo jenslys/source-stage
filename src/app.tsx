@@ -65,14 +65,12 @@ export function App({ config }: AppProps) {
           open={true}
           mode={controller.branchDialogMode}
           focus={controller.focus}
+          terminalHeight={terminalHeight}
           currentBranch={controller.currentBranch}
           branchOptions={controller.branchOptions}
-          branchOptionsKey={controller.branchOptionsKey}
           branchIndex={controller.branchIndex}
-          onBranchChange={controller.onBranchDialogChange}
           branchStrategyOptions={controller.branchStrategyOptions}
           branchStrategyIndex={controller.branchStrategyIndex}
-          onBranchStrategyChange={controller.onBranchStrategyChange}
           branchName={controller.newBranchName}
           branchNameRef={controller.branchNameRef}
           onBranchNameInput={controller.onBranchNameInput}
@@ -98,13 +96,12 @@ export function App({ config }: AppProps) {
           open={true}
           mode={controller.historyMode}
           focus={controller.focus}
+          terminalHeight={terminalHeight}
           currentBranch={controller.currentBranch}
           commitOptions={controller.commitOptions}
           commitIndex={controller.commitIndex}
-          onCommitChange={controller.onCommitIndexChange}
           actionOptions={controller.actionOptions}
           actionIndex={controller.actionIndex}
-          onActionChange={controller.onActionIndexChange}
           selectedCommitTitle={controller.selectedCommitTitle}
           theme={theme}
         />

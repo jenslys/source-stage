@@ -111,6 +111,22 @@ export function useCommitHistoryController({
     }
   }, [actionIndex, closeHistoryDialog, git, refreshSnapshot, runTask, selectedCommit])
 
+  const moveCommitSelectionUp = useCallback(() => {
+    setCommitIndex((current) => getPreviousIndex(current, commitOptions.length))
+  }, [commitOptions.length])
+
+  const moveCommitSelectionDown = useCallback(() => {
+    setCommitIndex((current) => getNextIndex(current, commitOptions.length))
+  }, [commitOptions.length])
+
+  const moveHistoryActionUp = useCallback(() => {
+    setActionIndex((current) => getPreviousIndex(current, ACTION_OPTIONS.length))
+  }, [])
+
+  const moveHistoryActionDown = useCallback(() => {
+    setActionIndex((current) => getNextIndex(current, ACTION_OPTIONS.length))
+  }, [])
+
   return {
     historyDialogOpen,
     historyMode,
@@ -124,7 +140,19 @@ export function useCommitHistoryController({
     backToCommitList,
     submitHistoryCommitSelection,
     submitHistoryAction,
-    onCommitIndexChange: setCommitIndex,
-    onActionIndexChange: setActionIndex,
+    moveCommitSelectionUp,
+    moveCommitSelectionDown,
+    moveHistoryActionUp,
+    moveHistoryActionDown,
   }
+}
+
+function getNextIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return (current + 1) % total
+}
+
+function getPreviousIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return (current - 1 + total) % total
 }

@@ -54,11 +54,6 @@ export function useBranchDialogController({
     [snapshot],
   )
 
-  const branchOptionsKey = useMemo(
-    () => branchOptions.map((option) => String(option.value)).join("|"),
-    [branchOptions],
-  )
-
   const openBranchDialog = useCallback(() => {
     setBranchDialogOpen(true)
     setBranchDialogMode("select")
@@ -166,11 +161,26 @@ export function useBranchDialogController({
     await performBranchTransition(pendingBranchAction, selectedValue)
   }, [branchStrategyIndex, pendingBranchAction, performBranchTransition])
 
+  const moveBranchSelectionUp = useCallback(() => {
+    setBranchIndex((current) => getPreviousIndex(current, branchOptions.length))
+  }, [branchOptions.length])
+
+  const moveBranchSelectionDown = useCallback(() => {
+    setBranchIndex((current) => getNextIndex(current, branchOptions.length))
+  }, [branchOptions.length])
+
+  const moveBranchStrategyUp = useCallback(() => {
+    setBranchStrategyIndex((current) => getPreviousIndex(current, BRANCH_STRATEGY_OPTIONS.length))
+  }, [])
+
+  const moveBranchStrategyDown = useCallback(() => {
+    setBranchStrategyIndex((current) => getNextIndex(current, BRANCH_STRATEGY_OPTIONS.length))
+  }, [])
+
   return {
     branchDialogOpen,
     branchDialogMode,
     branchOptions,
-    branchOptionsKey,
     branchIndex,
     branchStrategyOptions: BRANCH_STRATEGY_OPTIONS,
     branchStrategyIndex,
@@ -181,8 +191,20 @@ export function useBranchDialogController({
     submitBranchSelection,
     submitBranchStrategy,
     createBranchAndCheckout,
-    onBranchDialogChange: setBranchIndex,
-    onBranchStrategyChange: setBranchStrategyIndex,
+    moveBranchSelectionUp,
+    moveBranchSelectionDown,
+    moveBranchStrategyUp,
+    moveBranchStrategyDown,
     onBranchNameInput: setNewBranchName,
   }
+}
+
+function getNextIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return (current + 1) % total
+}
+
+function getPreviousIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return (current - 1 + total) % total
 }

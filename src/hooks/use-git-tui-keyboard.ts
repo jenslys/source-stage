@@ -26,11 +26,19 @@ type UseGitTuiKeyboardParams = {
   showBranchDialogList: () => void
   submitBranchSelection: () => Promise<void>
   submitBranchStrategy: () => Promise<void>
+  moveBranchSelectionUp: () => void
+  moveBranchSelectionDown: () => void
+  moveBranchStrategyUp: () => void
+  moveBranchStrategyDown: () => void
   openHistoryDialog: () => Promise<void>
   closeHistoryDialog: () => void
   backToHistoryCommitList: () => void
   submitHistoryCommitSelection: () => Promise<void>
   submitHistoryAction: () => Promise<void>
+  moveCommitSelectionUp: () => void
+  moveCommitSelectionDown: () => void
+  moveHistoryActionUp: () => void
+  moveHistoryActionDown: () => void
   commitChanges: () => Promise<void>
   createBranchAndCheckout: () => Promise<void>
   openCommitDialog: () => void
@@ -59,11 +67,19 @@ export function useGitTuiKeyboard({
   showBranchDialogList,
   submitBranchSelection,
   submitBranchStrategy,
+  moveBranchSelectionUp,
+  moveBranchSelectionDown,
+  moveBranchStrategyUp,
+  moveBranchStrategyDown,
   openHistoryDialog,
   closeHistoryDialog,
   backToHistoryCommitList,
   submitHistoryCommitSelection,
   submitHistoryAction,
+  moveCommitSelectionUp,
+  moveCommitSelectionDown,
+  moveHistoryActionUp,
+  moveHistoryActionDown,
   commitChanges,
   createBranchAndCheckout,
   openCommitDialog,
@@ -122,6 +138,34 @@ export function useGitTuiKeyboard({
       return
     }
 
+    if (historyDialogOpen && focus === "history-commits" && key.name === "up") {
+      key.preventDefault()
+      key.stopPropagation()
+      moveCommitSelectionUp()
+      return
+    }
+
+    if (historyDialogOpen && focus === "history-commits" && key.name === "down") {
+      key.preventDefault()
+      key.stopPropagation()
+      moveCommitSelectionDown()
+      return
+    }
+
+    if (historyDialogOpen && focus === "history-actions" && key.name === "up") {
+      key.preventDefault()
+      key.stopPropagation()
+      moveHistoryActionUp()
+      return
+    }
+
+    if (historyDialogOpen && focus === "history-actions" && key.name === "down") {
+      key.preventDefault()
+      key.stopPropagation()
+      moveHistoryActionDown()
+      return
+    }
+
     if (branchDialogOpen && isEnter) {
       key.preventDefault()
       key.stopPropagation()
@@ -131,6 +175,28 @@ export function useGitTuiKeyboard({
         void submitBranchStrategy()
       } else {
         void submitBranchSelection()
+      }
+      return
+    }
+
+    if (branchDialogOpen && focus === "branch-dialog-list" && key.name === "up") {
+      key.preventDefault()
+      key.stopPropagation()
+      if (branchDialogMode === "confirm") {
+        moveBranchStrategyUp()
+      } else {
+        moveBranchSelectionUp()
+      }
+      return
+    }
+
+    if (branchDialogOpen && focus === "branch-dialog-list" && key.name === "down") {
+      key.preventDefault()
+      key.stopPropagation()
+      if (branchDialogMode === "confirm") {
+        moveBranchStrategyDown()
+      } else {
+        moveBranchSelectionDown()
       }
       return
     }

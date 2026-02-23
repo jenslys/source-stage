@@ -1,5 +1,7 @@
 import { createCerebras } from "@ai-sdk/cerebras"
 import { generateText, jsonSchema, NoObjectGeneratedError, Output } from "ai"
+import { decode as decodeO200kBase, encode as encodeO200kBase } from "gpt-tokenizer/encoding/o200k_base"
+import { decode as decodeO200kHarmony, encode as encodeO200kHarmony } from "gpt-tokenizer/encoding/o200k_harmony"
 
 import type { StageConfig } from "./config"
 import type { ChangedFile, GitClient } from "./git"
@@ -8,6 +10,7 @@ const COMMIT_TYPES = ["feat", "fix", "docs", "style", "refactor", "perf", "test"
 type CommitType = (typeof COMMIT_TYPES)[number]
 const SCOPE_REGEX = /^[a-z0-9._/-]+$/
 const MAX_RECENT_COMMIT_SUBJECTS = 6
+const COMMIT_SUBJECT_MAX_LENGTH = 50
 
 const CONVENTIONAL_COMMIT_REGEX =
   /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: [^A-Z].+$/
@@ -47,6 +50,10 @@ type GenerateAiCommitSummaryParams = {
 }
 
 type TextGenerationModel = Parameters<typeof generateText>[0]["model"]
+type TextTokenizer = {
+  encode: (text: string) => number[]
+  decode: (tokens: number[]) => string
+}
 
 export async function generateAiCommitSummary({
   git,
@@ -69,13 +76,16 @@ export async function generateAiCommitSummary({
     throw new Error("No files selected for AI commit.")
   }
 
+  const tokenizer = resolveTokenizer(aiConfig.model)
   const fileByPath = new Map(files.map((file) => [file.path, file]))
   const context = await buildCommitContext({
     git,
     fileByPath,
     selectedPaths: selected,
     maxFiles: aiConfig.maxFiles,
-    maxCharsPerFile: aiConfig.maxCharsPerFile,
+    maxInputTokens: aiConfig.maxInputTokens,
+    maxTokensPerFile: aiConfig.maxTokensPerFile,
+    tokenizer,
   })
 
   const cerebras = createCerebras({
@@ -95,7 +105,7 @@ export async function generateAiCommitSummary({
   }
 
   throw new Error(
-    "AI did not return a usable conventional commit message. Try again or adjust ai.reasoning_effort / ai.max_chars_per_file.",
+    "AI did not return a usable conventional commit message. Try again or adjust ai.reasoning_effort / ai.max_input_tokens / ai.max_tokens_per_file.",
   )
 }
 
@@ -104,7 +114,9 @@ type BuildCommitContextParams = {
   fileByPath: Map<string, ChangedFile>
   selectedPaths: string[]
   maxFiles: number
-  maxCharsPerFile: number
+  maxInputTokens: number
+  maxTokensPerFile: number
+  tokenizer: TextTokenizer
 }
 
 async function buildCommitContext({
@@ -112,7 +124,9 @@ async function buildCommitContext({
   fileByPath,
   selectedPaths,
   maxFiles,
-  maxCharsPerFile,
+  maxInputTokens,
+  maxTokensPerFile,
+  tokenizer,
 }: BuildCommitContextParams): Promise<string> {
   const limitedPaths = selectedPaths.slice(0, maxFiles)
   const signals: ContextSignals = {
@@ -140,7 +154,7 @@ async function buildCommitContext({
     const diff = await git.diffForFile(path)
     const diffStats = analyzeDiff(diff)
     const behaviorCues = collectBehaviorCues(diff)
-    const condensed = condenseDiff(diff, maxCharsPerFile)
+    const condensed = condenseDiff(diff)
     return {
       path,
       addedLines: diffStats.addedLines,
@@ -159,10 +173,6 @@ async function buildCommitContext({
     return `- ${entry.status} ${entry.path} (+${additions} -${deletions})`
   })
 
-  const diffHighlights = snippets
-    .filter((snippet) => snippet.condensed)
-    .map((snippet) => `FILE: ${snippet.path}\n${snippet.condensed}`)
-
   const behaviorCues = aggregateBehaviorCues(snippets.map((snippet) => snippet.behaviorCues))
   const recentCommitSubjects = await readRecentCommitSubjects(git)
   const existingSurfaceOnly = signals.newFiles === 0 && signals.renamedFiles === 0
@@ -176,15 +186,11 @@ async function buildCommitContext({
       ]
     : []
 
-  const diffSection = diffHighlights.length > 0
-    ? diffHighlights.join("\n\n")
-    : "- no diff snippets were captured"
-
   const selectedPathsSection = selectedPaths.length > limitedPaths.length
     ? `- additional_selected_files_not_shown: ${selectedPaths.length - limitedPaths.length}`
     : "- additional_selected_files_not_shown: 0"
 
-  const lines: string[] = [
+  const preambleLines: string[] = [
     "Context signals:",
     `- touched_files: ${signals.touchedFiles}`,
     `- existing_surface_only: ${existingSurfaceOnly ? "yes" : "no"}`,
@@ -204,12 +210,24 @@ async function buildCommitContext({
     "Changed files:",
     fileLines.join("\n"),
     ...recentCommitsSection,
+  ]
+
+  const diffSection = buildDiffSectionWithBudget({
+    snippets: snippets.map((snippet) => ({ path: snippet.path, body: snippet.condensed })),
+    preambleLines,
+    maxInputTokens,
+    maxTokensPerFile,
+    tokenizer,
+  })
+
+  const context = [
+    ...preambleLines,
     "",
     "Diff highlights:",
     diffSection,
-  ]
+  ].join("\n")
 
-  return lines.join("\n")
+  return truncateToTokenBudget(context, maxInputTokens, tokenizer, "\n...[context truncated]")
 }
 
 async function readRecentCommitSubjects(git: GitClient): Promise<string[]> {
@@ -224,7 +242,7 @@ async function readRecentCommitSubjects(git: GitClient): Promise<string[]> {
   }
 }
 
-function condenseDiff(diff: string, maxChars: number): string {
+function condenseDiff(diff: string): string {
   const lines = diff.split("\n")
   const relevant: string[] = []
   let changedLines = 0
@@ -259,10 +277,151 @@ function condenseDiff(diff: string, maxChars: number): string {
   if (!body) {
     return ""
   }
-  if (body.length <= maxChars) {
-    return body
+  return body
+}
+
+function buildDiffSectionWithBudget({
+  snippets,
+  preambleLines,
+  maxInputTokens,
+  maxTokensPerFile,
+  tokenizer,
+}: {
+  snippets: Array<{ path: string; body: string }>
+  preambleLines: string[]
+  maxInputTokens: number
+  maxTokensPerFile: number
+  tokenizer: TextTokenizer
+}): string {
+  const fallback = "- no diff snippets were captured"
+  const preamble = [...preambleLines, "", "Diff highlights:"].join("\n")
+  const availableTokens = Math.max(maxInputTokens - tokenizer.encode(preamble).length, 0)
+  if (availableTokens <= 0) {
+    return truncateToTokenBudget(fallback, 1, tokenizer)
   }
-  return `${body.slice(0, Math.max(maxChars - 16, 1)).trimEnd()}\n...[truncated]`
+
+  const prepared = snippets
+    .filter((snippet) => snippet.body)
+    .map((snippet) => {
+      const header = `FILE: ${snippet.path}\n`
+      const body = truncateToTokenBudget(snippet.body, Math.max(maxTokensPerFile, 1), tokenizer)
+      return {
+        header,
+        body,
+        headerTokens: tokenizer.encode(header).length,
+        bodyTokens: tokenizer.encode(body).length,
+      }
+    })
+    .filter((snippet) => snippet.body)
+
+  if (prepared.length === 0) {
+    return truncateToTokenBudget(fallback, availableTokens, tokenizer)
+  }
+
+  const separator = "\n\n"
+  const separatorTokens = tokenizer.encode(separator).length
+  const minBodyTokens = 24
+
+  let includeCount = 0
+  let fixedCost = 0
+  let minimumBodyCost = 0
+
+  for (const snippet of prepared) {
+    const joinCost = includeCount > 0 ? separatorTokens : 0
+    const minBodyCost = Math.min(minBodyTokens, snippet.bodyTokens)
+    const nextCost = fixedCost + minimumBodyCost + joinCost + snippet.headerTokens + minBodyCost
+    if (nextCost > availableTokens) {
+      break
+    }
+    includeCount += 1
+    fixedCost += joinCost + snippet.headerTokens
+    minimumBodyCost += minBodyCost
+  }
+
+  if (includeCount === 0) {
+    const first = prepared[0]
+    if (!first || first.headerTokens >= availableTokens) {
+      return truncateToTokenBudget(fallback, availableTokens, tokenizer)
+    }
+    const bodyBudget = availableTokens - first.headerTokens
+    const body = truncateToTokenBudget(first.body, bodyBudget, tokenizer)
+    const single = `${first.header}${body}`.trimEnd()
+    return single || truncateToTokenBudget(fallback, availableTokens, tokenizer)
+  }
+
+  const included = prepared.slice(0, includeCount)
+  const bodyBudget = Math.max(availableTokens - fixedCost, 0)
+  const allocations = included.map((snippet) => Math.min(minBodyTokens, snippet.bodyTokens))
+  let remainingBodyTokens = Math.max(bodyBudget - allocations.reduce((sum, value) => sum + value, 0), 0)
+
+  while (remainingBodyTokens > 0) {
+    let progressed = false
+    for (let index = 0; index < included.length && remainingBodyTokens > 0; index += 1) {
+      const snippet = included[index]
+      if (!snippet) continue
+      if (allocations[index]! >= snippet.bodyTokens) continue
+      allocations[index] = allocations[index]! + 1
+      remainingBodyTokens -= 1
+      progressed = true
+    }
+    if (!progressed) {
+      break
+    }
+  }
+
+  const section = included
+    .map((snippet, index) => {
+      const body = truncateToTokenBudget(snippet.body, allocations[index] ?? 0, tokenizer)
+      return `${snippet.header}${body}`.trimEnd()
+    })
+    .filter(Boolean)
+    .join(separator)
+
+  if (!section) {
+    return truncateToTokenBudget(fallback, availableTokens, tokenizer)
+  }
+  return truncateToTokenBudget(section, availableTokens, tokenizer)
+}
+
+function truncateToTokenBudget(
+  text: string,
+  tokenLimit: number,
+  tokenizer: TextTokenizer,
+  suffix = "\n...[truncated]",
+): string {
+  if (tokenLimit <= 0) {
+    return ""
+  }
+  const encoded = tokenizer.encode(text)
+  if (encoded.length <= tokenLimit) {
+    return text
+  }
+
+  const suffixTokens = tokenizer.encode(suffix).length
+  if (tokenLimit <= suffixTokens) {
+    return tokenizer.decode(encoded.slice(0, tokenLimit)).trimEnd()
+  }
+
+  const contentTokenLimit = tokenLimit - suffixTokens
+  const clipped = tokenizer.decode(encoded.slice(0, contentTokenLimit)).trimEnd()
+  if (!clipped) {
+    return tokenizer.decode(encoded.slice(0, tokenLimit)).trimEnd()
+  }
+  return `${clipped}${suffix}`
+}
+
+function resolveTokenizer(model: string): TextTokenizer {
+  const normalizedModel = model.trim().toLowerCase()
+  if (normalizedModel.startsWith("gpt-oss") || normalizedModel.includes("harmony")) {
+    return {
+      encode: encodeO200kHarmony,
+      decode: decodeO200kHarmony,
+    }
+  }
+  return {
+    encode: encodeO200kBase,
+    decode: decodeO200kBase,
+  }
 }
 
 async function generateCommitDraft(
@@ -322,6 +481,7 @@ function buildSystemPrompt(retry: boolean): string {
     "- scope is optional and must be a lowercase noun token.",
     "- description is imperative, specific, concise, and starts lowercase.",
     "- description must read naturally after '<type>(<scope>):'.",
+    `- keep the full subject line at or under ${COMMIT_SUBJECT_MAX_LENGTH} characters, including type/scope and punctuation.`,
     "- for fix, phrase the user-visible failure prevented/resolved (often with 'when' or 'on').",
     "- for fix, prefer describing the undesired side effect being prevented.",
     "- for fix, prefer prevent/avoid/handle over enable/add.",
@@ -426,7 +586,7 @@ function finalizeCommitSummary(draft: CommitDraft | null): string | null {
 
   const prefix = draft.scope ? `${draft.type}(${draft.scope})` : draft.type
   const prefixWithColon = `${prefix}: `
-  const maxDescriptionLength = Math.max(72 - prefixWithColon.length, 1)
+  const maxDescriptionLength = Math.max(COMMIT_SUBJECT_MAX_LENGTH - prefixWithColon.length, 1)
   const compactDescription = compactDescriptionLength(draft.description, maxDescriptionLength)
   const candidate = `${prefixWithColon}${compactDescription}`
   if (!CONVENTIONAL_COMMIT_REGEX.test(candidate)) {
@@ -447,7 +607,7 @@ function compactDescriptionLength(description: string, maxLength: number): strin
 }
 
 function trimTrailingConnector(text: string): string {
-  const connectors = new Set(["and", "or", "to", "on", "with", "for", "of", "the", "a", "an", "via"])
+  const connectors = new Set(["and", "or", "to", "on", "with", "for", "of", "the", "a", "an", "via", "when", "by", "if", "while"])
   const words = text.split(" ").filter(Boolean)
   while (words.length > 1 && connectors.has(words[words.length - 1] ?? "")) {
     words.pop()

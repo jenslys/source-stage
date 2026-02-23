@@ -84,8 +84,9 @@ provider = "cerebras"                # currently only supported provider
 api_key = ""                         # required when enabled = true
 model = "gpt-oss-120b"
 reasoning_effort = "low"             # "low" | "medium" | "high"
+max_input_tokens = 24000
 max_files = 32
-max_chars_per_file = 4000
+max_tokens_per_file = 4000
 ```
 
 </details>

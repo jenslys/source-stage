@@ -22,8 +22,9 @@ export type StageConfig = {
     apiKey: string
     model: string
     reasoningEffort: "low" | "medium" | "high"
+    maxInputTokens: number
     maxFiles: number
-    maxCharsPerFile: number
+    maxTokensPerFile: number
   }
 }
 
@@ -51,8 +52,9 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
     apiKey: "",
     model: "gpt-oss-120b",
     reasoningEffort: "low",
+    maxInputTokens: 24000,
     maxFiles: 32,
-    maxCharsPerFile: 4000,
+    maxTokensPerFile: 4000,
   },
 }
 
@@ -170,7 +172,11 @@ function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
 
   if (root.ai !== undefined) {
     const ai = asRecord(root.ai, `[ai] in ${sourcePath}`)
-    assertNoUnknownKeys(ai, ["enabled", "provider", "api_key", "model", "reasoning_effort", "max_files", "max_chars_per_file"], `[ai] in ${sourcePath}`)
+    assertNoUnknownKeys(
+      ai,
+      ["enabled", "provider", "api_key", "model", "reasoning_effort", "max_input_tokens", "max_files", "max_tokens_per_file"],
+      `[ai] in ${sourcePath}`,
+    )
 
     if (ai.enabled !== undefined) {
       config.ai.enabled = asBoolean(ai.enabled, `ai.enabled in ${sourcePath}`)
@@ -204,6 +210,14 @@ function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
       config.ai.reasoningEffort = ai.reasoning_effort
     }
 
+    if (ai.max_input_tokens !== undefined) {
+      const maxInputTokens = asInteger(ai.max_input_tokens, `ai.max_input_tokens in ${sourcePath}`)
+      if (maxInputTokens <= 0) {
+        throw new Error(`ai.max_input_tokens in ${sourcePath} must be greater than 0.`)
+      }
+      config.ai.maxInputTokens = maxInputTokens
+    }
+
     if (ai.max_files !== undefined) {
       const maxFiles = asInteger(ai.max_files, `ai.max_files in ${sourcePath}`)
       if (maxFiles <= 0) {
@@ -212,12 +226,12 @@ function parseStageConfigToml(raw: string, sourcePath: string): StageConfig {
       config.ai.maxFiles = maxFiles
     }
 
-    if (ai.max_chars_per_file !== undefined) {
-      const maxCharsPerFile = asInteger(ai.max_chars_per_file, `ai.max_chars_per_file in ${sourcePath}`)
-      if (maxCharsPerFile <= 0) {
-        throw new Error(`ai.max_chars_per_file in ${sourcePath} must be greater than 0.`)
+    if (ai.max_tokens_per_file !== undefined) {
+      const maxTokensPerFile = asInteger(ai.max_tokens_per_file, `ai.max_tokens_per_file in ${sourcePath}`)
+      if (maxTokensPerFile <= 0) {
+        throw new Error(`ai.max_tokens_per_file in ${sourcePath} must be greater than 0.`)
       }
-      config.ai.maxCharsPerFile = maxCharsPerFile
+      config.ai.maxTokensPerFile = maxTokensPerFile
     }
   }
 
@@ -248,8 +262,9 @@ function cloneConfig(config: StageConfig): StageConfig {
       apiKey: config.ai.apiKey,
       model: config.ai.model,
       reasoningEffort: config.ai.reasoningEffort,
+      maxInputTokens: config.ai.maxInputTokens,
       maxFiles: config.ai.maxFiles,
-      maxCharsPerFile: config.ai.maxCharsPerFile,
+      maxTokensPerFile: config.ai.maxTokensPerFile,
     },
   }
 }

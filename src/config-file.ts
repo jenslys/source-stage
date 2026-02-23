@@ -33,8 +33,9 @@ function createDefaultConfigToml(defaults: StageConfig): string {
     'api_key = ""',
     `model = "${defaults.ai.model}"`,
     `reasoning_effort = "${defaults.ai.reasoningEffort}"`,
+    `max_input_tokens = ${defaults.ai.maxInputTokens}`,
     `max_files = ${defaults.ai.maxFiles}`,
-    `max_chars_per_file = ${defaults.ai.maxCharsPerFile}`,
+    `max_tokens_per_file = ${defaults.ai.maxTokensPerFile}`,
     "",
   ].join("\n")
 }

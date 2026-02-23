@@ -8,14 +8,12 @@ type BranchDialogProps = {
   open: boolean
   mode: "select" | "create" | "confirm"
   focus: FocusTarget
+  terminalHeight: number
   currentBranch: string
   branchOptions: SelectOption[]
-  branchOptionsKey: string
   branchIndex: number
-  onBranchChange: (index: number) => void
   branchStrategyOptions: SelectOption[]
   branchStrategyIndex: number
-  onBranchStrategyChange: (index: number) => void
   branchName: string
   branchNameRef: RefObject<InputRenderable | null>
   onBranchNameInput: (value: string) => void
@@ -26,20 +24,21 @@ export function BranchDialog({
   open,
   mode,
   focus,
+  terminalHeight,
   currentBranch,
   branchOptions,
-  branchOptionsKey,
   branchIndex,
-  onBranchChange,
   branchStrategyOptions,
   branchStrategyIndex,
-  onBranchStrategyChange,
   branchName,
   branchNameRef,
   onBranchNameInput,
   theme,
 }: BranchDialogProps) {
   if (!open) return null
+  const visibleOptionRows = Math.max(4, terminalHeight - 16)
+  const branchRange = getVisibleRange(branchOptions.length, branchIndex, visibleOptionRows)
+  const strategyRange = getVisibleRange(branchStrategyOptions.length, branchStrategyIndex, visibleOptionRows)
 
   return (
     <box
@@ -58,34 +57,44 @@ export function BranchDialog({
         {mode === "select" ? (
           <>
             <text fg={theme.colors.subtleText}>enter to checkout | select & enter to create branch | esc to close</text>
-            <select
-              key={branchOptionsKey}
-              style={{ width: "100%", height: "100%", textColor: theme.colors.selectText }}
-              options={branchOptions}
-              selectedIndex={branchIndex}
-              showDescription={true}
-              focused={focus === "branch-dialog-list"}
-              selectedBackgroundColor={theme.colors.selectSelectedBackground}
-              selectedTextColor={theme.colors.selectSelectedText}
-              focusedTextColor={theme.colors.selectFocusedText}
-              onChange={onBranchChange}
-            />
+            <box style={{ width: "100%", flexDirection: "column" }}>
+              {branchOptions.slice(branchRange.start, branchRange.end).map((option, visibleIndex) => {
+                const absoluteIndex = branchRange.start + visibleIndex
+                const selected = absoluteIndex === branchIndex
+                const optionName = option.name ?? String(option.value ?? "")
+                const optionDescription = option.description ?? ""
+                return (
+                  <box key={`${optionName}-${absoluteIndex}`} style={{ flexDirection: "column", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}>
+                    <text fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
+                      {selected ? "▶ " : "  "}
+                      {optionName}
+                    </text>
+                    {optionDescription ? <text fg={theme.colors.subtleText}>  {optionDescription}</text> : null}
+                  </box>
+                )
+              })}
+            </box>
           </>
         ) : mode === "confirm" ? (
           <>
             <text fg={theme.colors.subtleText}>what should happen to your working changes? | enter to continue | esc to go back</text>
-            <select
-              key={`${branchOptionsKey}-strategy`}
-              style={{ width: "100%", height: "100%", textColor: theme.colors.selectText }}
-              options={branchStrategyOptions}
-              selectedIndex={branchStrategyIndex}
-              showDescription={true}
-              focused={focus === "branch-dialog-list"}
-              selectedBackgroundColor={theme.colors.selectSelectedBackground}
-              selectedTextColor={theme.colors.selectSelectedText}
-              focusedTextColor={theme.colors.selectFocusedText}
-              onChange={onBranchStrategyChange}
-            />
+            <box style={{ width: "100%", flexDirection: "column" }}>
+              {branchStrategyOptions.slice(strategyRange.start, strategyRange.end).map((option, visibleIndex) => {
+                const absoluteIndex = strategyRange.start + visibleIndex
+                const selected = absoluteIndex === branchStrategyIndex
+                const optionName = option.name ?? String(option.value ?? "")
+                const optionDescription = option.description ?? ""
+                return (
+                  <box key={`${optionName}-${absoluteIndex}`} style={{ flexDirection: "column", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}>
+                    <text fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
+                      {selected ? "▶ " : "  "}
+                      {optionName}
+                    </text>
+                    {optionDescription ? <text fg={theme.colors.subtleText}>  {optionDescription}</text> : null}
+                  </box>
+                )
+              })}
+            </box>
           </>
         ) : (
           <>
@@ -104,4 +113,13 @@ export function BranchDialog({
       </box>
     </box>
   )
+}
+
+function getVisibleRange(total: number, selectedIndex: number, windowSize: number): { start: number; end: number } {
+  if (total <= 0) return { start: 0, end: 0 }
+  const safeSize = Math.max(windowSize, 1)
+  const maxStart = Math.max(total - safeSize, 0)
+  const centeredStart = Math.max(selectedIndex - Math.floor(safeSize / 2), 0)
+  const start = Math.min(centeredStart, maxStart)
+  return { start, end: Math.min(start + safeSize, total) }
 }
