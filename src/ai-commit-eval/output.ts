@@ -28,6 +28,8 @@ export function printResults(
         finalContextTokens,
         truncatedByTokenBudget,
         omittedDiffFiles,
+        dominantPathGroups,
+        omittedDiffPathsSample,
       } = result.contextStats
       console.log("context:")
       console.log(`  selected_paths_total: ${selectedPathsTotal}`)
@@ -39,6 +41,8 @@ export function printResults(
       console.log(`  trimmed_tokens: ${Math.max(preTruncationContextTokens - finalContextTokens, 0)}`)
       console.log(`  truncated_by_token_budget: ${truncatedByTokenBudget ? "yes" : "no"}`)
       console.log(`  omitted_diff_files: ${omittedDiffFiles}`)
+      console.log(`  dominant_path_groups: ${dominantPathGroups.join(" | ") || "none"}`)
+      console.log(`  omitted_diff_paths_sample: ${omittedDiffPathsSample.join(", ") || "none"}`)
     }
     if (index < results.length - 1) {
       console.log("")

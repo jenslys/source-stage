@@ -34,19 +34,28 @@ export function buildSystemPrompt(retry: boolean): string {
     "- avoid vague lead verbs like support, update, improve, change.",
     "- avoid 'enable' for fix unless the phrase also states what broken behavior is corrected.",
     "- avoid generic phrases like 'update code' or 'improve things'.",
+    "Coverage rules:",
+    "- infer dominant change themes from changed-files list, path distribution, and behavior cues.",
+    "- the description must reflect the dominant theme(s), not a single narrow area when multiple major areas changed.",
+    "- if changes span distinct modules (for example ui + git + config), prefer wording that covers cross-cutting behavior.",
+    "- avoid overfitting to one directory unless context shows it clearly dominates.",
     retry
       ? "Retry mode: if previous output was invalid, simplify wording while keeping meaning."
       : "Return the best single conventional commit subject metadata for this change set.",
   ].join("\n")
 }
 
-export function buildUserPrompt(context: string, retry: boolean): string {
+export function buildUserPrompt(context: string, retry: boolean, retryReason?: string): string {
   const retryLine = retry
     ? "Retry constraints: keep description short and concrete; prefer simpler scope or omit scope."
     : "Use the context below."
+  const retryReasonLine = retryReason?.trim()
+    ? `Retry focus: previous draft was weak because ${retryReason.trim()}`
+    : null
 
   return [
     retryLine,
+    ...(retryReasonLine ? [retryReasonLine] : []),
     "Output must satisfy schema and conventional commit semantics.",
     "",
     context,

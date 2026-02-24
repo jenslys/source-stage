@@ -31,6 +31,8 @@ export type CommitContextStats = {
   finalContextTokens: number
   truncatedByTokenBudget: boolean
   omittedDiffFiles: number
+  dominantPathGroups: string[]
+  omittedDiffPathsSample: string[]
 }
 
 export type CommitContextBuildResult = {
@@ -49,6 +51,8 @@ type ContextSnippet = {
 
 const MAX_RAW_DIFF_CHARS_FOR_CONTEXT = 250_000
 const MAX_CONTEXT_FILES = 128
+const MAX_PATH_GROUPS_IN_CONTEXT = 8
+const MAX_OMITTED_DIFF_PATHS_IN_CONTEXT = 12
 
 export async function buildCommitContext({
   git,
@@ -81,6 +85,11 @@ export async function buildCommitContext({
 
   const snippets = await Promise.all(limitedPaths.map((path) => readContextSnippet(git, path)))
   const omittedDiffFiles = snippets.filter((snippet) => snippet.omitted).length
+  const omittedDiffPaths = snippets.filter((snippet) => snippet.omitted).map((snippet) => snippet.path)
+  const pathGroupCounts = summarizePathGroups(limitedPaths)
+  const dominantPathGroups = pathGroupCounts
+    .slice(0, MAX_PATH_GROUPS_IN_CONTEXT)
+    .map((entry) => `${entry.group}=${entry.count}`)
 
   const fileLines = fileSummaries.map((entry) => {
     const snippet = snippets.find((candidate) => candidate.path === entry.path)
@@ -118,6 +127,7 @@ export async function buildCommitContext({
     `- status_counts: new=${signals.newFiles} modified=${signals.modifiedFiles} deleted=${signals.deletedFiles} renamed=${signals.renamedFiles}`,
     `- diff_line_counts: additions=${signals.addedLines} deletions=${signals.removedLines}`,
     `- file_categories: docs=${signals.docsFiles} tests=${signals.testFiles} config=${signals.configFiles}`,
+    `- path_distribution: ${dominantPathGroups.join(" | ") || "none"}`,
     `- omitted_diff_files: ${omittedDiffFiles}`,
     selectedPathsSection,
     "- classify by behavior impact first; line counts and file counts are supporting signals",
@@ -132,6 +142,18 @@ export async function buildCommitContext({
     "",
     "Changed files:",
     fileLines.join("\n"),
+    ...(omittedDiffPaths.length > 0
+      ? [
+          "",
+          "Omitted diff bodies (too large/unavailable):",
+          ...omittedDiffPaths
+            .slice(0, MAX_OMITTED_DIFF_PATHS_IN_CONTEXT)
+            .map((path) => `- ${path}`),
+          ...(omittedDiffPaths.length > MAX_OMITTED_DIFF_PATHS_IN_CONTEXT
+            ? [`- ...and ${omittedDiffPaths.length - MAX_OMITTED_DIFF_PATHS_IN_CONTEXT} more`]
+            : []),
+        ]
+      : []),
     ...recentCommitsSection,
   ]
 
@@ -165,6 +187,8 @@ export async function buildCommitContext({
       finalContextTokens,
       truncatedByTokenBudget: finalContextTokens < preTruncationContextTokens,
       omittedDiffFiles,
+      dominantPathGroups,
+      omittedDiffPathsSample: omittedDiffPaths.slice(0, MAX_OMITTED_DIFF_PATHS_IN_CONTEXT),
     },
   }
 }
@@ -207,6 +231,44 @@ function compactError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   const normalized = message.replace(/\s+/g, " ").trim()
   return normalized.length > 140 ? `${normalized.slice(0, 137).trimEnd()}...` : normalized
+}
+
+function summarizePathGroups(paths: string[]): Array<{ group: string; count: number }> {
+  const counts = new Map<string, number>()
+  for (const path of paths) {
+    const group = resolvePathGroup(path)
+    counts.set(group, (counts.get(group) ?? 0) + 1)
+  }
+
+  return Array.from(counts.entries())
+    .map(([group, count]) => ({ group, count }))
+    .sort((a, b) => (b.count === a.count ? a.group.localeCompare(b.group) : b.count - a.count))
+}
+
+function resolvePathGroup(path: string): string {
+  const normalized = path.trim().replace(/\\/g, "/")
+  if (!normalized) {
+    return "(unknown)"
+  }
+
+  const parts = normalized.split("/").filter(Boolean)
+  if (parts.length <= 1) {
+    return "(root)"
+  }
+
+  const first = parts[0] ?? "(unknown)"
+  const second = parts[1]
+  if (first === "src" && second) {
+    if (parts.length === 2 && second.includes(".")) {
+      return "src/(root)"
+    }
+    return `${first}/${second}`
+  }
+  if (first.startsWith(".") && second) {
+    return `${first}/${second}`
+  }
+
+  return first
 }
 
 async function readRecentCommitSubjects(git: GitClient): Promise<string[]> {

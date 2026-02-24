@@ -23,6 +23,7 @@ export async function generateCommitDraft(
   context: string,
   reasoningEffort: "low" | "medium" | "high",
   retry: boolean,
+  retryReason?: string,
 ): Promise<string | null> {
   const maxOutputTokens = resolveMaxOutputTokens(reasoningEffort)
 
@@ -43,7 +44,7 @@ export async function generateCommitDraft(
         schema: COMMIT_OUTPUT_FLEXIBLE_SCHEMA,
       }),
       system: buildSystemPrompt(retry),
-      prompt: buildUserPrompt(context, retry),
+      prompt: buildUserPrompt(context, retry, retryReason),
     })
 
     return finalizeCommitSummary(normalizeCommitDraft(output))

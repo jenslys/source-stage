@@ -2,6 +2,7 @@ import { createCerebras } from "@ai-sdk/cerebras"
 
 import type { StageConfig } from "../config"
 import type { ChangedFile, GitClient } from "../git"
+import { buildDominantTokenRetryHint, selectBestCommitSubject } from "./candidate-ranking"
 import { buildCommitContext, type CommitContextStats } from "./context-builder"
 import { generateCommitDraft } from "./draft"
 import { resolveTokenizer } from "./tokenizer"
@@ -52,17 +53,69 @@ export async function generateAiCommitSummary({
   })
   const model = cerebras(aiConfig.model)
 
-  const firstAttempt = await generateCommitDraft(model, context, aiConfig.reasoningEffort, false)
-  if (firstAttempt) {
-    return firstAttempt
+  const candidates: string[] = []
+  for (const config of CANDIDATE_ATTEMPTS) {
+    const candidate = await generateCommitDraft(
+      model,
+      context,
+      aiConfig.reasoningEffort,
+      config.retry,
+      config.retryReason,
+    )
+    if (candidate) {
+      candidates.push(candidate)
+    }
   }
 
-  const secondAttempt = await generateCommitDraft(model, context, aiConfig.reasoningEffort, true)
-  if (secondAttempt) {
-    return secondAttempt
+  const best = selectBestCommitSubject({
+    candidates,
+    context,
+    selectedPaths: selected,
+  })
+  if (best && !best.hardRejected) {
+    return best.subject
+  }
+
+  if (best) {
+    const retryReason = buildDominantTokenRetryHint({
+      context,
+      selectedPaths: selected,
+      subject: best.subject,
+    })
+    if (retryReason) {
+      const targetedRetry = await generateCommitDraft(
+        model,
+        context,
+        aiConfig.reasoningEffort,
+        true,
+        retryReason,
+      )
+      if (targetedRetry) {
+        const reselected = selectBestCommitSubject({
+          candidates: [...candidates, targetedRetry],
+          context,
+          selectedPaths: selected,
+        })
+        if (reselected) {
+          return reselected.subject
+        }
+      }
+    }
+
+    return best.subject
   }
 
   throw new Error(
     "AI did not return a usable conventional commit message. Try again or adjust ai.reasoning_effort / ai.max_input_tokens.",
   )
 }
+
+const CANDIDATE_ATTEMPTS: Array<{
+  retry: boolean
+  retryReason?: string
+}> = [
+  { retry: false },
+  { retry: true, retryReason: "cover dominant changed themes across modules when applicable" },
+  { retry: true, retryReason: "avoid narrowing the summary to a single subsystem unless clearly dominant" },
+  { retry: true, retryReason: "include major configuration or policy terms when they are prominent" },
+]
