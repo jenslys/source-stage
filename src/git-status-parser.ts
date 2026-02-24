@@ -11,12 +11,27 @@ const STATUS_NAME: Record<string, string> = {
   "?": "untracked",
 }
 
-export function parseBranchLine(line: string): {
+type BranchStatus = {
   branch: string
   upstream: string | null
   ahead: number
   behind: number
+}
+
+export function parseStatusOutput(statusOutput: string): {
+  branch: BranchStatus
+  files: ChangedFile[]
 } {
+  const tokens = statusOutput.split("\u0000").filter((token) => token.length > 0)
+  const branchToken = tokens[0]?.startsWith("##") ? (tokens.shift() ?? "") : ""
+
+  return {
+    branch: parseBranchLine(branchToken),
+    files: parseChangedFiles(tokens),
+  }
+}
+
+export function parseBranchLine(line: string): BranchStatus {
   if (!line.startsWith("##")) {
     return { branch: "unknown", upstream: null, ahead: 0, behind: 0 }
   }
@@ -61,30 +76,47 @@ export function parseBranchLine(line: string): {
   return { branch, upstream, ahead, behind }
 }
 
-export function parseChangedFiles(lines: string[]): ChangedFile[] {
-  return lines
-    .map((line) => {
-      const indexStatus = line[0] ?? " "
-      const worktreeStatus = line[1] ?? " "
-      const pathPart = line.slice(3).trim()
-      const path = pathPart.includes(" -> ") ? (pathPart.split(" -> ").pop() ?? "").trim() : pathPart
-      if (!path) return null
+function parseChangedFiles(tokens: string[]): ChangedFile[] {
+  const files: ChangedFile[] = []
 
-      const untracked = indexStatus === "?" && worktreeStatus === "?"
-      const staged = !untracked && indexStatus !== " "
-      const unstaged = !untracked && worktreeStatus !== " "
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index] ?? ""
+    if (token.length < 3) continue
 
-      return {
-        path,
-        indexStatus,
-        worktreeStatus,
-        staged,
-        unstaged,
-        untracked,
-        statusLabel: buildStatusLabel(indexStatus, worktreeStatus),
-      } satisfies ChangedFile
+    const indexStatus = token[0] ?? " "
+    const worktreeStatus = token[1] ?? " "
+    const pathToken = token.slice(3)
+
+    let path = pathToken
+    if (
+      (indexStatus === "R" ||
+        indexStatus === "C" ||
+        worktreeStatus === "R" ||
+        worktreeStatus === "C") &&
+      tokens[index + 1]
+    ) {
+      path = tokens[index + 1] ?? pathToken
+      index += 1
+    }
+
+    if (!path) continue
+
+    const untracked = indexStatus === "?" && worktreeStatus === "?"
+    const staged = !untracked && indexStatus !== " "
+    const unstaged = !untracked && worktreeStatus !== " "
+
+    files.push({
+      path,
+      indexStatus,
+      worktreeStatus,
+      staged,
+      unstaged,
+      untracked,
+      statusLabel: buildStatusLabel(indexStatus, worktreeStatus),
     })
-    .filter((file): file is ChangedFile => Boolean(file))
+  }
+
+  return files
 }
 
 function buildStatusLabel(indexStatus: string, worktreeStatus: string): string {

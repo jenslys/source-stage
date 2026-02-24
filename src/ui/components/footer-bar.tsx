@@ -14,7 +14,14 @@ type FooterBarProps = {
 
 const SPINNER_FRAMES = "⣾⣽⣻⢿⡿⣟⣯⣷"
 
-export function FooterBar({ statusMessage, showShortcutsHint, terminalWidth, fatalError, isBusy, theme }: FooterBarProps) {
+export function FooterBar({
+  statusMessage,
+  showShortcutsHint,
+  terminalWidth,
+  fatalError,
+  isBusy,
+  theme,
+}: FooterBarProps) {
   const [spinnerIndex, setSpinnerIndex] = useState(0)
 
   useEffect(() => {
@@ -39,7 +46,17 @@ export function FooterBar({ statusMessage, showShortcutsHint, terminalWidth, fat
     const footerLine = fitFooterLine(statusWithSpinner, footerInnerWidth)
     return (
       <box style={{ height: 1, paddingLeft: 1, paddingRight: 1 }}>
-        <text fg={fatalError ? theme.colors.footerError : isBusy ? theme.colors.footerBusy : theme.colors.footerReady}>{footerLine}</text>
+        <text
+          fg={
+            fatalError
+              ? theme.colors.footerError
+              : isBusy
+                ? theme.colors.footerBusy
+                : theme.colors.footerReady
+          }
+        >
+          {footerLine}
+        </text>
       </box>
     )
   }
@@ -58,7 +75,17 @@ export function FooterBar({ statusMessage, showShortcutsHint, terminalWidth, fat
 
   return (
     <box style={{ height: 1, paddingLeft: 1, paddingRight: 1, flexDirection: "row" }}>
-      <text fg={fatalError ? theme.colors.footerError : isBusy ? theme.colors.footerBusy : theme.colors.footerReady}>{leftLine}</text>
+      <text
+        fg={
+          fatalError
+            ? theme.colors.footerError
+            : isBusy
+              ? theme.colors.footerBusy
+              : theme.colors.footerReady
+        }
+      >
+        {leftLine}
+      </text>
       <text fg={theme.colors.subtleText}> {shortcutsHint}</text>
     </box>
   )

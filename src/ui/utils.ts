@@ -8,7 +8,8 @@ export function inferFiletype(path: string | undefined): string | undefined {
   const normalized = extension.toLowerCase()
 
   if (normalized === "ts" || normalized === "tsx") return "typescript"
-  if (normalized === "js" || normalized === "jsx" || normalized === "mjs" || normalized === "cjs") return "javascript"
+  if (normalized === "js" || normalized === "jsx" || normalized === "mjs" || normalized === "cjs")
+    return "javascript"
   if (normalized === "md" || normalized === "mdx") return "markdown"
   if (normalized === "yml") return "yaml"
   if (normalized === "sh" || normalized === "zsh") return "bash"
@@ -29,7 +30,11 @@ export function fitPathForWidth(path: string, width: number): string {
   return `${fitted.directory}${fitted.filename}`
 }
 
-export function fitPathPartsForWidth(directory: string, filename: string, width: number): { directory: string; filename: string } {
+export function fitPathPartsForWidth(
+  directory: string,
+  filename: string,
+  width: number,
+): { directory: string; filename: string } {
   if (width <= 0) return { directory: "", filename: "" }
 
   const fullPath = `${directory}${filename}`
@@ -72,7 +77,11 @@ export function fitFooterStatusLine(left: string, right: string, width: number):
   return `${leftText} ${rightText}`
 }
 
-export function formatTrackingSummary(upstream: string | null, ahead: number, behind: number): string {
+export function formatTrackingSummary(
+  upstream: string | null,
+  ahead: number,
+  behind: number,
+): string {
   if (!upstream) {
     return "◌ unpublished"
   }

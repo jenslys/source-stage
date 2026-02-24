@@ -1,21 +1,19 @@
 {
   "name": "stage-tui",
   "version": "1.0.8",
+  "private": false,
   "description": "Minimalist TUI Git client",
+  "homepage": "https://github.com/jenslys/stage",
+  "bugs": {
+    "url": "https://github.com/jenslys/stage/issues"
+  },
   "author": "jenslys",
   "repository": {
     "type": "git",
     "url": "https://github.com/jenslys/stage.git"
   },
-  "homepage": "https://github.com/jenslys/stage",
-  "bugs": {
-    "url": "https://github.com/jenslys/stage/issues"
-  },
-  "module": "index.ts",
-  "type": "module",
-  "private": false,
-  "publishConfig": {
-    "access": "public"
+  "bin": {
+    "stage": "./bin/stage"
   },
   "files": [
     "bin",
@@ -23,19 +21,18 @@
     "index.ts",
     "README.md"
   ],
-  "bin": {
-    "stage": "./bin/stage"
+  "type": "module",
+  "module": "index.ts",
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "stage": "bun run index.ts",
-    "eval:ai": "bun run src/ai-commit-eval.ts"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/react": "^19.2.14"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "eval:ai": "bun run src/ai-commit-eval.ts",
+    "lint": "oxlint --react-plugin --import-plugin --promise-plugin src index.ts",
+    "lint:fix": "oxlint --react-plugin --import-plugin --promise-plugin --fix src index.ts",
+    "format": "oxfmt --write src index.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json",
+    "format:check": "oxfmt --check src index.ts package.json tsconfig.json .oxlintrc.json .oxfmtrc.json"
   },
   "dependencies": {
     "@ai-sdk/cerebras": "^2.0.34",
@@ -44,5 +41,14 @@
     "ai": "^6.0.97",
     "gpt-tokenizer": "^3.4.0",
     "react": "^19.2.4"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.2.14",
+    "oxfmt": "0.35.0",
+    "oxlint": "1.50.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
   }
 }

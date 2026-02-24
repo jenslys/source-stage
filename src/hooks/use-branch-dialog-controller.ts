@@ -1,16 +1,22 @@
 import type { InputRenderable, SelectOption } from "@opentui/core"
-import { useCallback, useMemo, useState, type Dispatch, type RefObject, type SetStateAction } from "react"
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react"
 
 import type { GitClient, RepoSnapshot } from "../git"
-import type { FocusTarget } from "../ui/types"
+import { clampSelectionIndex, getNextIndex, getPreviousIndex } from "./selection-index"
+import type { RunTask } from "./use-task-runner"
+import type { BranchDialogMode, FocusTarget } from "../ui/types"
 
-type BranchDialogMode = "select" | "create" | "confirm"
 type BranchChangeStrategy = "bring" | "leave"
 type PendingBranchAction =
   | { kind: "checkout"; branch: string }
   | { kind: "create"; branchName: string }
-
-type RunTask = (label: string, task: () => Promise<void>) => Promise<boolean>
 
 type UseBranchDialogControllerParams = {
   git: GitClient | null
@@ -23,8 +29,16 @@ type UseBranchDialogControllerParams = {
 
 const CREATE_BRANCH_VALUE = "__create_branch__"
 const BRANCH_STRATEGY_OPTIONS: SelectOption[] = [
-  { name: "bring working changes", description: "Carry local changes onto the new branch", value: "bring" },
-  { name: "leave changes on current branch", description: "Stash changes and switch cleanly", value: "leave" },
+  {
+    name: "bring working changes",
+    description: "Carry local changes onto the new branch",
+    value: "bring",
+  },
+  {
+    name: "leave changes on current branch",
+    description: "Stash changes and switch cleanly",
+    value: "leave",
+  },
 ]
 
 export function useBranchDialogController({
@@ -152,7 +166,14 @@ export function useBranchDialogController({
       return
     }
     await requestBranchTransition({ kind: "checkout", branch: optionValue })
-  }, [branchIndex, branchOptions, closeBranchDialog, requestBranchTransition, showBranchCreateInput, snapshot])
+  }, [
+    branchIndex,
+    branchOptions,
+    closeBranchDialog,
+    requestBranchTransition,
+    showBranchCreateInput,
+    snapshot,
+  ])
 
   const createBranchAndCheckout = useCallback(async (): Promise<void> => {
     const branchName = branchNameRef.current?.value ?? newBranchName
@@ -182,12 +203,15 @@ export function useBranchDialogController({
     setBranchStrategyIndex((current) => getNextIndex(current, BRANCH_STRATEGY_OPTIONS.length))
   }, [])
 
-  const setBranchSelection = useCallback((index: number) => {
-    const total = branchOptions.length
-    if (total <= 0) return
-    const normalized = clampSelectionIndex(index, total)
-    setBranchIndex(normalized)
-  }, [branchOptions.length])
+  const setBranchSelection = useCallback(
+    (index: number) => {
+      const total = branchOptions.length
+      if (total <= 0) return
+      const normalized = clampSelectionIndex(index, total)
+      setBranchIndex(normalized)
+    },
+    [branchOptions.length],
+  )
 
   const setBranchStrategySelection = useCallback((index: number) => {
     const total = BRANCH_STRATEGY_OPTIONS.length
@@ -223,19 +247,4 @@ export function useBranchDialogController({
     focusBranchDialogList,
     onBranchNameInput: setNewBranchName,
   }
-}
-
-function getNextIndex(current: number, total: number): number {
-  if (total <= 0) return 0
-  return (current + 1) % total
-}
-
-function getPreviousIndex(current: number, total: number): number {
-  if (total <= 0) return 0
-  return (current - 1 + total) % total
-}
-
-function clampSelectionIndex(current: number, total: number): number {
-  if (total <= 0) return 0
-  return Math.min(Math.max(current, 0), total - 1)
 }

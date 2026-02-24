@@ -1,13 +1,17 @@
+import type { CliRenderer } from "@opentui/core"
 import type { InputRenderable, TextareaRenderable } from "@opentui/core"
 import { useCallback, useMemo, useRef, useState } from "react"
 
 import { generateAiCommitSummary } from "../ai-commit"
 import type { StageConfig } from "../config"
 import { GitClient, type RepoSnapshot } from "../git"
+import { resolveTracking } from "./git-tui-controller/tracking"
+import { clampSelectionIndex, getNextIndex, getPreviousIndex } from "./selection-index"
 import { type FocusTarget, type TopAction } from "../ui/types"
 import { buildFileRow, inferFiletype } from "../ui/utils"
 import { useBranchDialogController } from "./use-branch-dialog-controller"
 import { useCommitHistoryController } from "./use-commit-history-controller"
+import { useTaskRunner } from "./use-task-runner"
 import {
   useFileDiffLoader,
   useGitInitialization,
@@ -15,34 +19,28 @@ import {
   useSnapshotSelectionSync,
 } from "./use-git-tui-effects"
 import { useGitTuiKeyboard } from "./use-git-tui-keyboard"
-type RendererLike = {
-  destroy: () => void
-}
 
-export function useGitTuiController(renderer: RendererLike, config: StageConfig) {
+export function useGitTuiController(
+  renderer: Pick<CliRenderer, "destroy" | "getSelection" | "copyToClipboardOSC52">,
+  config: StageConfig,
+) {
   const branchNameRef = useRef<InputRenderable>(null)
   const summaryRef = useRef<InputRenderable>(null)
   const descriptionRef = useRef<TextareaRenderable>(null)
-
   const [git, setGit] = useState<GitClient | null>(null)
   const [snapshot, setSnapshot] = useState<RepoSnapshot | null>(null)
   const [fatalError, setFatalError] = useState<string | null>(null)
-
   const [focus, setFocus] = useState<FocusTarget>("files")
   const [fileIndex, setFileIndex] = useState(0)
   const [excludedPaths, setExcludedPaths] = useState<Set<string>>(new Set())
-
   const [summary, setSummary] = useState("")
   const [descriptionRenderKey, setDescriptionRenderKey] = useState(0)
   const [diffText, setDiffText] = useState("")
   const [diffMessage, setDiffMessage] = useState<string | null>("No file selected")
-
   const [commitDialogOpen, setCommitDialogOpen] = useState(false)
   const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false)
-  const [busy, setBusy] = useState<string | null>(null)
-  const [statusMessage, setStatusMessage] = useState("Initializing...")
+  const { isBusy, statusMessage, setStatusMessage, runTask } = useTaskRunner()
 
-  const isBusy = busy !== null
   const selectedFile = snapshot?.files[fileIndex] ?? null
   const selectedFilePath = selectedFile?.path ?? null
   const diffFiletype = inferFiletype(selectedFile?.path)
@@ -68,30 +66,8 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
 
   const getIncludedPaths = useCallback(
     () =>
-      (snapshot?.files ?? [])
-        .map((file) => file.path)
-        .filter((path) => !excludedPaths.has(path)),
+      (snapshot?.files ?? []).map((file) => file.path).filter((path) => !excludedPaths.has(path)),
     [excludedPaths, snapshot],
-  )
-
-  const runTask = useCallback(
-    async (label: string, task: () => Promise<void>): Promise<boolean> => {
-      if (isBusy) return false
-      setBusy(label)
-      setStatusMessage(`${label}...`)
-      try {
-        await task()
-        setStatusMessage(`${label} complete`)
-        return true
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        setStatusMessage(`Error: ${message}`)
-        return false
-      } finally {
-        setBusy(null)
-      }
-    },
-    [isBusy],
   )
 
   const openCommitDialog = useCallback(() => {
@@ -112,14 +88,14 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
 
       void (async () => {
         const succeeded = await runTask("AI COMMIT", async () => {
-          const summary = await generateAiCommitSummary({
+          const generatedSummary = await generateAiCommitSummary({
             git,
             files: snapshot?.files ?? [],
             selectedPaths: includedPaths,
             aiConfig: config.ai,
           })
-          await git.commit(summary, "", Array.from(excludedPaths), includedPaths)
-          setStatusMessage(`Committed: ${summary}`)
+          await git.commit(generatedSummary, "", Array.from(excludedPaths), includedPaths)
+          setStatusMessage(`Committed: ${generatedSummary}`)
           setSummary("")
           setDescriptionRenderKey((value) => value + 1)
           setCommitDialogOpen(false)
@@ -211,7 +187,7 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     setExcludedPaths,
     autoStageOnCommit: config.git.autoStageOnCommit,
   })
-  useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessage })
+  useFileDiffLoader({ git, selectedFilePath, setDiffText, setDiffMessage })
 
   const toggleSelectedFileInCommit = useCallback(() => {
     if (!selectedFilePath) return
@@ -230,11 +206,14 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     setFocus("files")
   }, [])
 
-  const setMainFileSelection = useCallback((index: number) => {
-    const total = snapshot?.files.length ?? 0
-    if (total <= 0) return
-    setFileIndex(clampSelectionIndex(index, total))
-  }, [snapshot?.files.length])
+  const setMainFileSelection = useCallback(
+    (index: number) => {
+      const total = snapshot?.files.length ?? 0
+      if (total <= 0) return
+      setFileIndex(clampSelectionIndex(index, total))
+    },
+    [snapshot?.files.length],
+  )
 
   const moveToPreviousMainFile = useCallback(() => {
     setFileIndex((current) => getPreviousIndex(current, snapshot?.files.length ?? 0))
@@ -287,19 +266,7 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     toggleSelectedFileInCommit,
   })
 
-  const tracking = snapshot
-    ? {
-        loading: false,
-        upstream: snapshot.upstream,
-        ahead: snapshot.ahead,
-        behind: snapshot.behind,
-      }
-    : {
-        loading: true,
-        upstream: null,
-        ahead: 0,
-        behind: 0,
-      }
+  const tracking = resolveTracking(snapshot)
 
   return {
     summaryRef,
@@ -330,19 +297,4 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     tracking,
     onSummaryInput: setSummary,
   }
-}
-
-function getNextIndex(current: number, total: number): number {
-  if (total <= 0) return 0
-  return (current + 1) % total
-}
-
-function getPreviousIndex(current: number, total: number): number {
-  if (total <= 0) return 0
-  return (current - 1 + total) % total
-}
-
-function clampSelectionIndex(current: number, total: number): number {
-  if (total <= 0) return 0
-  return Math.min(Math.max(current, 0), total - 1)
 }

@@ -3,7 +3,10 @@ import { dirname } from "node:path"
 
 import type { StageConfig } from "./config"
 
-export async function ensureUserConfigFile(configPath: string, defaults: StageConfig): Promise<void> {
+export async function ensureUserConfigFile(
+  configPath: string,
+  defaults: StageConfig,
+): Promise<void> {
   await mkdir(dirname(configPath), { recursive: true })
   try {
     await writeFile(configPath, createDefaultConfigToml(defaults), { flag: "wx" })

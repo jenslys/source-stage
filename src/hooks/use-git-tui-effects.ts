@@ -1,6 +1,6 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react"
 
-import { GitClient, type ChangedFile, type GitClientOptions, type RepoSnapshot } from "../git"
+import { GitClient, type GitClientOptions, type RepoSnapshot } from "../git"
 
 type SetGit = Dispatch<SetStateAction<GitClient | null>>
 type SetString = Dispatch<SetStateAction<string>>
@@ -15,7 +15,12 @@ type UseGitInitializationParams = {
   gitOptions: GitClientOptions
 }
 
-export function useGitInitialization({ setGit, setFatalError, setStatusMessage, gitOptions }: UseGitInitializationParams) {
+export function useGitInitialization({
+  setGit,
+  setFatalError,
+  setStatusMessage,
+  gitOptions,
+}: UseGitInitializationParams) {
   useEffect(() => {
     let cancelled = false
 
@@ -47,7 +52,11 @@ type UseGitSnapshotPollingParams = {
   setStatusMessage: SetString
 }
 
-export function useGitSnapshotPolling({ git, refreshSnapshot, setStatusMessage }: UseGitSnapshotPollingParams) {
+export function useGitSnapshotPolling({
+  git,
+  refreshSnapshot,
+  setStatusMessage,
+}: UseGitSnapshotPollingParams) {
   useEffect(() => {
     if (!git) return
     let active = true
@@ -118,23 +127,28 @@ export function useSnapshotSelectionSync({
 
 type UseFileDiffLoaderParams = {
   git: GitClient | null
-  selectedFile: ChangedFile | null
+  selectedFilePath: string | null
   setDiffText: SetString
   setDiffMessage: SetNullableString
 }
 
-export function useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessage }: UseFileDiffLoaderParams) {
+export function useFileDiffLoader({
+  git,
+  selectedFilePath,
+  setDiffText,
+  setDiffMessage,
+}: UseFileDiffLoaderParams) {
   const previousSelectedPathRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!git || !selectedFile) {
+    if (!git || !selectedFilePath) {
       previousSelectedPathRef.current = null
       setDiffText("")
       setDiffMessage("No file selected")
       return
     }
 
-    const selectedPath = selectedFile.path
+    const selectedPath = selectedFilePath
     const pathChanged = previousSelectedPathRef.current !== selectedPath
     previousSelectedPathRef.current = selectedPath
 
@@ -164,5 +178,5 @@ export function useFileDiffLoader({ git, selectedFile, setDiffText, setDiffMessa
     return () => {
       cancelled = true
     }
-  }, [git, selectedFile, setDiffMessage, setDiffText])
+  }, [git, selectedFilePath, setDiffMessage, setDiffText])
 }

@@ -1,4 +1,5 @@
 import type { UiTheme } from "../theme"
+import { getVisibleRange } from "../list-range"
 import type { FileRow, FocusTarget } from "../types"
 import { fitPathPartsForWidth } from "../utils"
 
@@ -43,7 +44,9 @@ export function DiffWorkspace({
   const showLoadingState = !hasSnapshot
   const showCleanState = hasSnapshot && fileRows.length === 0
   const showUnselectedState = hasSnapshot && fileRows.length > 0 && !selectedFilePath
-  const paneLabel = selectedFilePath ?? (showLoadingState ? "loading" : showCleanState ? "overview" : "no file selected")
+  const paneLabel =
+    selectedFilePath ??
+    (showLoadingState ? "loading" : showCleanState ? "overview" : "no file selected")
 
   return (
     <box style={{ flexDirection: "row", flexGrow: 1, gap: 1, paddingLeft: 1, paddingRight: 1 }}>
@@ -61,7 +64,9 @@ export function DiffWorkspace({
         >
           {rows.length === 0 ? (
             <box style={{ paddingLeft: 1, paddingTop: 1 }}>
-              <text fg={theme.colors.subtleText}>{showLoadingState ? "loading changes..." : "working tree clean"}</text>
+              <text fg={theme.colors.subtleText}>
+                {showLoadingState ? "loading changes..." : "working tree clean"}
+              </text>
             </box>
           ) : (
             rows.map((row, rowIndex) => {
@@ -71,19 +76,35 @@ export function DiffWorkspace({
               return (
                 <box
                   key={row.path}
-                  style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}) }}
+                  style={{
+                    height: 1,
+                    flexDirection: "row",
+                    ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}),
+                  }}
                   onMouseDown={(event) => {
                     event.preventDefault()
                     event.stopPropagation()
                     onFileClick(absoluteIndex)
                   }}
                 >
-                  <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>{row.included ? "[x]" : "[ ]"}</text>
+                  <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>
+                    {row.included ? "[x]" : "[ ]"}
+                  </text>
                   <text fg={theme.colors.subtleText}> </text>
                   <text fg={row.statusColor}>{row.statusSymbol}</text>
                   <text fg={theme.colors.subtleText}> </text>
-                  {fittedPath.directory ? <text fg={theme.colors.subtleText}>{fittedPath.directory}</text> : null}
-                  <text fg={selected || focus === "files" ? theme.colors.inputFocusedText : theme.colors.text}>{fittedPath.filename}</text>
+                  {fittedPath.directory ? (
+                    <text fg={theme.colors.subtleText}>{fittedPath.directory}</text>
+                  ) : null}
+                  <text
+                    fg={
+                      selected || focus === "files"
+                        ? theme.colors.inputFocusedText
+                        : theme.colors.text
+                    }
+                  >
+                    {fittedPath.filename}
+                  </text>
                 </box>
               )
             })
@@ -152,7 +173,16 @@ type EmptyStatePanelProps = {
 function EmptyStatePanel({ title, subtitle, hint, theme }: EmptyStatePanelProps) {
   return (
     <box style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }}>
-      <box style={{ width: "100%", maxWidth: 62, flexDirection: "column", gap: 1, paddingLeft: 2, paddingRight: 2 }}>
+      <box
+        style={{
+          width: "100%",
+          maxWidth: 62,
+          flexDirection: "column",
+          gap: 1,
+          paddingLeft: 2,
+          paddingRight: 2,
+        }}
+      >
         <text fg={theme.colors.text}>{title}</text>
         <text fg={theme.colors.subtleText}>{subtitle}</text>
         <text fg={theme.colors.hintText}>{hint}</text>
@@ -172,13 +202,4 @@ function getChangesPaneWidth(terminalWidth: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
-}
-
-function getVisibleRange(total: number, selectedIndex: number, windowSize: number): { start: number; end: number } {
-  if (total <= 0) return { start: 0, end: 0 }
-  const safeSize = Math.max(windowSize, 1)
-  const maxStart = Math.max(total - safeSize, 0)
-  const centeredStart = Math.max(selectedIndex - Math.floor(safeSize / 2), 0)
-  const start = Math.min(centeredStart, maxStart)
-  return { start, end: Math.min(start + safeSize, total) }
 }

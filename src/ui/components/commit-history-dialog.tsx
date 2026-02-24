@@ -1,12 +1,15 @@
 import type { SelectOption } from "@opentui/core"
 
-import type { UiTheme } from "../theme"
+import { getPaneWidths, resolveRowBackground, resolveRowTextColor } from "./commit-history/layout"
+import { getVisibleRange } from "../list-range"
 import type { FocusTarget } from "../types"
 import { fitLine, fitPathForWidth } from "../utils"
+import type { UiTheme } from "../theme"
+import type { CommitHistoryMode } from "../types"
 
 type CommitHistoryDialogProps = {
   open: boolean
-  mode: "list" | "action"
+  mode: CommitHistoryMode
   focus: FocusTarget
   terminalWidth: number
   terminalHeight: number
@@ -72,7 +75,8 @@ export function CommitHistoryDialog({
   const leftPaneTitle = mode === "list" ? `commits (${commitOptions.length})` : "actions"
   const selectedPreviewTitle = mode === "action" ? selectedCommitTitle : selectedCommitPreviewTitle
   const rightPaneTitle = selectedFilePath || selectedPreviewTitle || "no file selected"
-  const commitsFocused = mode === "action" ? focus === "history-actions" : focus === "history-commits"
+  const commitsFocused =
+    mode === "action" ? focus === "history-actions" : focus === "history-commits"
   const filesFocused = mode === "list" && focus === "history-files"
 
   return (
@@ -95,7 +99,9 @@ export function CommitHistoryDialog({
 
         <box style={{ flexDirection: "row", flexGrow: 1, gap: 1 }}>
           <box style={{ width: commitsPaneWidth, flexDirection: "column" }}>
-            <text fg={commitsFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>{leftPaneTitle}</text>
+            <text fg={commitsFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>
+              {leftPaneTitle}
+            </text>
             <box
               style={{ flexDirection: "column", flexGrow: 1 }}
               onMouseScroll={(event) => {
@@ -111,75 +117,97 @@ export function CommitHistoryDialog({
               }}
             >
               {mode === "list"
-                ? commitOptions.slice(commitRange.start, commitRange.end).map((option, visibleIndex) => {
-                    const absoluteIndex = commitRange.start + visibleIndex
-                    const selected = absoluteIndex === commitIndex
-                    const optionName = option.name ?? String(option.value ?? "")
-                    const optionDescription = option.description ?? ""
-                    const label = optionDescription ? `${optionDescription}  ${optionName}` : optionName
+                ? commitOptions
+                    .slice(commitRange.start, commitRange.end)
+                    .map((option, visibleIndex) => {
+                      const absoluteIndex = commitRange.start + visibleIndex
+                      const selected = absoluteIndex === commitIndex
+                      const optionName = option.name ?? String(option.value ?? "")
+                      const optionDescription = option.description ?? ""
+                      const label = optionDescription
+                        ? `${optionDescription}  ${optionName}`
+                        : optionName
 
-                    return (
-                      <box
-                        key={`${optionName}-${absoluteIndex}`}
-                        style={{ height: 1, flexDirection: "row", ...resolveRowBackground({
-                          selected,
-                          focused: focus === "history-commits",
-                          theme,
-                        }) }}
-                        onMouseDown={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          onCommitClick(absoluteIndex)
-                        }}
-                      >
-                        <text fg={resolveRowTextColor({
-                          selected,
-                          focused: focus === "history-commits",
-                          theme,
-                        })}>
-                          {selected ? "▶ " : "  "}
-                          {fitLine(label, commitRowWidth)}
-                        </text>
-                      </box>
-                    )
-                  })
-                : actionOptions.slice(actionRange.start, actionRange.end).map((option, visibleIndex) => {
-                    const absoluteIndex = actionRange.start + visibleIndex
-                    const selected = absoluteIndex === actionIndex
-                    const optionName = option.name ?? String(option.value ?? "")
-                    const optionDescription = option.description ?? ""
-                    const label = optionDescription ? `${optionName} - ${optionDescription}` : optionName
+                      return (
+                        <box
+                          key={`${optionName}-${absoluteIndex}`}
+                          style={{
+                            height: 1,
+                            flexDirection: "row",
+                            ...resolveRowBackground({
+                              selected,
+                              focused: focus === "history-commits",
+                              theme,
+                            }),
+                          }}
+                          onMouseDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            onCommitClick(absoluteIndex)
+                          }}
+                        >
+                          <text
+                            fg={resolveRowTextColor({
+                              selected,
+                              focused: focus === "history-commits",
+                              theme,
+                            })}
+                          >
+                            {selected ? "▶ " : "  "}
+                            {fitLine(label, commitRowWidth)}
+                          </text>
+                        </box>
+                      )
+                    })
+                : actionOptions
+                    .slice(actionRange.start, actionRange.end)
+                    .map((option, visibleIndex) => {
+                      const absoluteIndex = actionRange.start + visibleIndex
+                      const selected = absoluteIndex === actionIndex
+                      const optionName = option.name ?? String(option.value ?? "")
+                      const optionDescription = option.description ?? ""
+                      const label = optionDescription
+                        ? `${optionName} - ${optionDescription}`
+                        : optionName
 
-                    return (
-                      <box
-                        key={`${optionName}-${absoluteIndex}`}
-                        style={{ height: 1, flexDirection: "row", ...resolveRowBackground({
-                          selected,
-                          focused: focus === "history-actions",
-                          theme,
-                        }) }}
-                        onMouseDown={(event) => {
-                          event.preventDefault()
-                          event.stopPropagation()
-                          onActionClick(absoluteIndex)
-                        }}
-                      >
-                        <text fg={resolveRowTextColor({
-                          selected,
-                          focused: focus === "history-actions",
-                          theme,
-                        })}>
-                          {selected ? "▶ " : "  "}
-                          {fitLine(label, commitRowWidth)}
-                        </text>
-                      </box>
-                    )
-                  })}
+                      return (
+                        <box
+                          key={`${optionName}-${absoluteIndex}`}
+                          style={{
+                            height: 1,
+                            flexDirection: "row",
+                            ...resolveRowBackground({
+                              selected,
+                              focused: focus === "history-actions",
+                              theme,
+                            }),
+                          }}
+                          onMouseDown={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            onActionClick(absoluteIndex)
+                          }}
+                        >
+                          <text
+                            fg={resolveRowTextColor({
+                              selected,
+                              focused: focus === "history-actions",
+                              theme,
+                            })}
+                          >
+                            {selected ? "▶ " : "  "}
+                            {fitLine(label, commitRowWidth)}
+                          </text>
+                        </box>
+                      )
+                    })}
             </box>
           </box>
 
           <box style={{ width: filesPaneWidth, flexDirection: "column" }}>
-            <text fg={filesFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>files ({fileOptions.length})</text>
+            <text fg={filesFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>
+              files ({fileOptions.length})
+            </text>
             <box
               style={{ flexDirection: "column", flexGrow: 1 }}
               onMouseScroll={(event) => {
@@ -202,22 +230,28 @@ export function CommitHistoryDialog({
                 return (
                   <box
                     key={`${optionName}-${absoluteIndex}`}
-                    style={{ height: 1, flexDirection: "row", ...resolveRowBackground({
-                      selected,
-                      focused: focus === "history-files",
-                      theme,
-                    }) }}
+                    style={{
+                      height: 1,
+                      flexDirection: "row",
+                      ...resolveRowBackground({
+                        selected,
+                        focused: focus === "history-files",
+                        theme,
+                      }),
+                    }}
                     onMouseDown={(event) => {
                       event.preventDefault()
                       event.stopPropagation()
                       onFileClick(absoluteIndex)
                     }}
                   >
-                    <text fg={resolveRowTextColor({
-                      selected,
-                      focused: focus === "history-files",
-                      theme,
-                    })}>
+                    <text
+                      fg={resolveRowTextColor({
+                        selected,
+                        focused: focus === "history-files",
+                        theme,
+                      })}
+                    >
                       {selected ? "▶ " : "  "}
                       {fitLine(label, fileRowWidth)}
                     </text>
@@ -258,69 +292,4 @@ export function CommitHistoryDialog({
       </box>
     </box>
   )
-}
-
-function resolveRowTextColor({
-  selected,
-  focused,
-  theme,
-}: {
-  selected: boolean
-  focused: boolean
-  theme: UiTheme
-}): string {
-  if (selected && focused) return theme.colors.selectSelectedText
-  if (selected) return theme.colors.selectText
-  if (focused) return theme.colors.text
-  return theme.colors.subtleText
-}
-
-function resolveRowBackground({
-  selected,
-  focused,
-  theme,
-}: {
-  selected: boolean
-  focused: boolean
-  theme: UiTheme
-}): { backgroundColor?: string } {
-  if (selected && focused) {
-    return { backgroundColor: theme.colors.selectSelectedBackground }
-  }
-  return {}
-}
-
-function getPaneWidths(terminalWidth: number): { commitsPaneWidth: number; filesPaneWidth: number } {
-  if (!Number.isFinite(terminalWidth) || terminalWidth <= 0) {
-    return { commitsPaneWidth: 42, filesPaneWidth: 34 }
-  }
-
-  const minimumCommitsWidth = 30
-  const minimumFilesWidth = 26
-  const minimumDiffWidth = 48
-  const preferredCommitsWidth = Math.floor(terminalWidth * 0.32)
-  const maxCommitsWidth = Math.max(minimumCommitsWidth, terminalWidth - minimumFilesWidth - minimumDiffWidth)
-  const commitsPaneWidth = clamp(preferredCommitsWidth, minimumCommitsWidth, maxCommitsWidth)
-
-  const preferredFilesWidth = Math.floor(terminalWidth * 0.24)
-  const maxFilesWidth = Math.max(minimumFilesWidth, terminalWidth - commitsPaneWidth - minimumDiffWidth)
-  const filesPaneWidth = clamp(preferredFilesWidth, minimumFilesWidth, maxFilesWidth)
-
-  return {
-    commitsPaneWidth,
-    filesPaneWidth,
-  }
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
-}
-
-function getVisibleRange(total: number, selectedIndex: number, windowSize: number): { start: number; end: number } {
-  if (total <= 0) return { start: 0, end: 0 }
-  const safeSize = Math.max(windowSize, 1)
-  const maxStart = Math.max(total - safeSize, 0)
-  const centeredStart = Math.max(selectedIndex - Math.floor(safeSize / 2), 0)
-  const start = Math.min(centeredStart, maxStart)
-  return { start, end: Math.min(start + safeSize, total) }
 }
