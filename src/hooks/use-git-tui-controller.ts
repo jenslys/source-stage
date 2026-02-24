@@ -21,6 +21,7 @@ import {
 import { useGitTuiKeyboard } from "./use-git-tui-keyboard"
 
 type PushSyncAction = "merge-push" | "ff-push" | "cancel"
+type DiscardAction = "discard" | "cancel"
 type MergeConflictAction = "complete" | "abort"
 
 const PUSH_SYNC_OPTIONS: SelectOption[] = [
@@ -37,6 +38,19 @@ const PUSH_SYNC_OPTIONS: SelectOption[] = [
   {
     name: "cancel",
     description: "do nothing",
+    value: "cancel",
+  },
+]
+
+const DISCARD_OPTIONS: SelectOption[] = [
+  {
+    name: "discard changes",
+    description: "remove local edits for this file",
+    value: "discard",
+  },
+  {
+    name: "cancel",
+    description: "keep the file as-is",
     value: "cancel",
   },
 ]
@@ -62,6 +76,9 @@ export function useGitTuiController(
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
   const [syncOptionIndex, setSyncOptionIndex] = useState(0)
   const [syncDetails, setSyncDetails] = useState<string | null>(null)
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false)
+  const [discardOptionIndex, setDiscardOptionIndex] = useState(1)
+  const [discardPath, setDiscardPath] = useState<string | null>(null)
   const [mergeConflictDialogOpen, setMergeConflictDialogOpen] = useState(false)
   const [mergeConflictDetails, setMergeConflictDetails] = useState<string | null>(null)
   const [mergeConflictFilePaths, setMergeConflictFilePaths] = useState<string[]>([])
@@ -446,6 +463,72 @@ export function useGitTuiController(
     setFocus("files")
   }, [])
 
+  const openDiscardDialog = useCallback(() => {
+    if (!selectedFilePath) {
+      setStatusMessage("Pick a file first.")
+      return
+    }
+    setDiscardPath(selectedFilePath)
+    setDiscardOptionIndex(1)
+    setDiscardDialogOpen(true)
+    setFocus("discard-dialog-list")
+  }, [selectedFilePath, setStatusMessage])
+
+  const closeDiscardDialog = useCallback(() => {
+    setDiscardDialogOpen(false)
+    setDiscardOptionIndex(1)
+    setDiscardPath(null)
+    setFocus("files")
+  }, [])
+
+  const setDiscardSelection = useCallback((index: number) => {
+    const total = DISCARD_OPTIONS.length
+    if (total <= 0) return
+    setDiscardOptionIndex(clampSelectionIndex(index, total))
+  }, [])
+
+  const moveDiscardSelectionUp = useCallback(() => {
+    setDiscardOptionIndex((current) => getPreviousIndex(current, DISCARD_OPTIONS.length))
+  }, [])
+
+  const moveDiscardSelectionDown = useCallback(() => {
+    setDiscardOptionIndex((current) => getNextIndex(current, DISCARD_OPTIONS.length))
+  }, [])
+
+  const submitDiscardAction = useCallback(async (): Promise<void> => {
+    if (!git || !discardPath) {
+      closeDiscardDialog()
+      return
+    }
+
+    const selected = DISCARD_OPTIONS[discardOptionIndex]
+    const action: DiscardAction =
+      selected?.value === "discard" || selected?.value === "cancel" ? selected.value : "cancel"
+
+    if (action === "cancel") {
+      closeDiscardDialog()
+      return
+    }
+
+    const succeeded = await runTask("discard changes", async () => {
+      await git.discardFileChanges(discardPath)
+      await refreshSnapshot()
+    })
+
+    if (succeeded) {
+      setStatusMessage(`Discarded ${discardPath}`)
+      closeDiscardDialog()
+    }
+  }, [
+    closeDiscardDialog,
+    discardOptionIndex,
+    discardPath,
+    git,
+    refreshSnapshot,
+    runTask,
+    setStatusMessage,
+  ])
+
   const setSyncSelection = useCallback((index: number) => {
     const total = PUSH_SYNC_OPTIONS.length
     if (total <= 0) return
@@ -686,6 +769,7 @@ export function useGitTuiController(
     renderer,
     commitDialogOpen,
     syncDialogOpen,
+    discardDialogOpen,
     mergeConflictDialogOpen,
     branchDialogOpen: branchDialog.branchDialogOpen,
     branchDialogMode: branchDialog.branchDialogMode,
@@ -702,6 +786,7 @@ export function useGitTuiController(
     openBranchDialog: branchDialog.openBranchDialog,
     closeBranchDialog: branchDialog.closeBranchDialog,
     closeSyncDialog,
+    closeDiscardDialog,
     closeMergeConflictDialog,
     showBranchDialogList: branchDialog.showBranchDialogList,
     submitBranchSelection: branchDialog.submitBranchSelection,
@@ -721,6 +806,7 @@ export function useGitTuiController(
     submitHistoryCommitSelection: commitHistory.submitHistoryCommitSelection,
     submitHistoryAction: commitHistory.submitHistoryAction,
     submitSyncAction,
+    submitDiscardAction,
     submitMergeConflictAction,
     openSelectedMergeConflictFileInEditor,
     moveCommitSelectionUp: commitHistory.moveCommitSelectionUp,
@@ -731,11 +817,14 @@ export function useGitTuiController(
     moveHistoryActionDown: commitHistory.moveHistoryActionDown,
     moveMergeConflictFileUp,
     moveMergeConflictFileDown,
+    moveDiscardSelectionUp,
+    moveDiscardSelectionDown,
     moveMergeConflictActionUp,
     moveMergeConflictActionDown,
     commitChanges,
     createBranchAndCheckout: branchDialog.createBranchAndCheckout,
     openCommitDialog,
+    openDiscardDialog,
     openSelectedFileInEditor,
     openShortcutsDialog: () => setShortcutsDialogOpen(true),
     closeShortcutsDialog: () => setShortcutsDialogOpen(false),
@@ -766,6 +855,7 @@ export function useGitTuiController(
     diffFiletype,
     commitDialogOpen,
     syncDialogOpen,
+    discardDialogOpen,
     mergeConflictDialogOpen,
     syncOptions: PUSH_SYNC_OPTIONS,
     syncOptionIndex,
@@ -775,6 +865,14 @@ export function useGitTuiController(
     moveSyncSelectionDown,
     submitSyncAction,
     closeSyncDialog,
+    discardPath,
+    discardOptions: DISCARD_OPTIONS,
+    discardOptionIndex,
+    setDiscardSelection,
+    moveDiscardSelectionUp,
+    moveDiscardSelectionDown,
+    submitDiscardAction,
+    closeDiscardDialog,
     mergeConflictDetails,
     mergeConflictFileOptions,
     mergeConflictFileIndex,

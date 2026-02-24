@@ -10,6 +10,7 @@ export function useGitTuiKeyboard(params: UseGitTuiKeyboardParams) {
     const flags = resolveKeyboardFlags(key, {
       commitDialogOpen: params.commitDialogOpen,
       syncDialogOpen: params.syncDialogOpen,
+      discardDialogOpen: params.discardDialogOpen,
       mergeConflictDialogOpen: params.mergeConflictDialogOpen,
       branchDialogOpen: params.branchDialogOpen,
       historyDialogOpen: params.historyDialogOpen,

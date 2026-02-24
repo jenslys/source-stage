@@ -23,6 +23,7 @@ import {
   commitChanges,
   completeMergeCommit,
   createAndCheckoutBranch,
+  discardFileChanges,
   deleteLocalBranch,
   deleteRemoteBranch,
   fetchRepo,
@@ -128,6 +129,10 @@ export class GitClient {
 
   async markConflictResolved(path: string): Promise<void> {
     await markConflictResolved(path, this.runGit)
+  }
+
+  async discardFileChanges(path: string): Promise<void> {
+    await discardFileChanges(path, this.runGit)
   }
 
   async workingTreeFileHasConflictMarkers(path: string): Promise<boolean> {

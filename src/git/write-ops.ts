@@ -69,6 +69,25 @@ export async function markConflictResolved(path: string, runGit: RunGit): Promis
   await runGit(["add", "--", normalizedPath])
 }
 
+export async function discardFileChanges(path: string, runGit: RunGit): Promise<void> {
+  const normalizedPath = path.trim()
+  if (!normalizedPath) {
+    throw new Error("File path is required.")
+  }
+
+  const trackedCheck = await runGit(["ls-files", "--error-unmatch", "--", normalizedPath], {
+    expectedCodes: [0, 1, 128],
+  })
+  const isTracked = trackedCheck.code === 0
+
+  if (isTracked) {
+    await runGit(["restore", "--staged", "--worktree", "--", normalizedPath])
+    return
+  }
+
+  await runGit(["clean", "-f", "--", normalizedPath])
+}
+
 export async function completeMergeCommit(runGit: RunGit): Promise<void> {
   const mergeInProgress = await isMergeInProgress(runGit)
   if (!mergeInProgress) {

@@ -6,6 +6,7 @@ export type FocusTarget =
   | "history-files"
   | "history-actions"
   | "sync-dialog-list"
+  | "discard-dialog-list"
   | "merge-conflict-files"
   | "merge-conflict-actions"
   | "commit-summary"

@@ -12,6 +12,7 @@ export type UseGitTuiKeyboardParams = {
   renderer: RendererClipboard
   commitDialogOpen: boolean
   syncDialogOpen: boolean
+  discardDialogOpen: boolean
   mergeConflictDialogOpen: boolean
   branchDialogOpen: boolean
   branchDialogMode: BranchDialogMode
@@ -28,6 +29,7 @@ export type UseGitTuiKeyboardParams = {
   openBranchDialog: () => void
   closeBranchDialog: () => void
   closeSyncDialog: () => void
+  closeDiscardDialog: () => void
   closeMergeConflictDialog: () => void
   showBranchDialogList: () => void
   submitBranchSelection: () => Promise<void>
@@ -47,6 +49,7 @@ export type UseGitTuiKeyboardParams = {
   submitHistoryCommitSelection: () => Promise<void>
   submitHistoryAction: () => Promise<void>
   submitSyncAction: () => Promise<void>
+  submitDiscardAction: () => Promise<void>
   submitMergeConflictAction: () => Promise<void>
   openSelectedMergeConflictFileInEditor: () => Promise<void>
   moveCommitSelectionUp: () => void
@@ -57,11 +60,14 @@ export type UseGitTuiKeyboardParams = {
   moveHistoryActionDown: () => void
   moveMergeConflictFileUp: () => void
   moveMergeConflictFileDown: () => void
+  moveDiscardSelectionUp: () => void
+  moveDiscardSelectionDown: () => void
   moveMergeConflictActionUp: () => void
   moveMergeConflictActionDown: () => void
   commitChanges: () => Promise<void>
   createBranchAndCheckout: () => Promise<void>
   openCommitDialog: () => void
+  openDiscardDialog: () => void
   openSelectedFileInEditor: () => Promise<void>
   openShortcutsDialog: () => void
   closeShortcutsDialog: () => void

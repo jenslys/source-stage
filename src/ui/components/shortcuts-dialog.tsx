@@ -12,6 +12,7 @@ const BASE_SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
   ["b", "change branch"],
   ["h", "open commit history"],
   ["space", "include or exclude file in commit"],
+  ["delete", "discard selected file changes (confirm)"],
   ["↑ / ↓", "move file selection"],
   ["r", "↻ refresh"],
   ["f", "fetch remote"],

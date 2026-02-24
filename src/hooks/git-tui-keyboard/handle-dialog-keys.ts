@@ -21,6 +21,7 @@ export function handleDialogKeys({
     renderer,
     commitDialogOpen,
     syncDialogOpen,
+    discardDialogOpen,
     mergeConflictDialogOpen,
     branchDialogOpen,
     branchDialogMode,
@@ -29,6 +30,7 @@ export function handleDialogKeys({
     shortcutsDialogOpen,
     closeShortcutsDialog,
     closeSyncDialog,
+    closeDiscardDialog,
     closeMergeConflictDialog,
     openShortcutsDialog,
     focus,
@@ -36,6 +38,7 @@ export function handleDialogKeys({
     setFocus,
     submitHistoryAction,
     submitSyncAction,
+    submitDiscardAction,
     submitMergeConflictAction,
     openSelectedMergeConflictFileInEditor,
     submitHistoryCommitSelection,
@@ -59,6 +62,8 @@ export function handleDialogKeys({
     moveSyncSelectionDown,
     moveMergeConflictFileUp,
     moveMergeConflictFileDown,
+    moveDiscardSelectionUp,
+    moveDiscardSelectionDown,
     moveMergeConflictActionUp,
     moveMergeConflictActionDown,
     commitChanges,
@@ -82,6 +87,7 @@ export function handleDialogKeys({
   if (
     !commitDialogOpen &&
     !syncDialogOpen &&
+    !discardDialogOpen &&
     !mergeConflictDialogOpen &&
     !branchDialogOpen &&
     !historyDialogOpen &&
@@ -124,6 +130,27 @@ export function handleDialogKeys({
     key.preventDefault()
     key.stopPropagation()
     moveSyncSelectionDown()
+    return true
+  }
+
+  if (discardDialogOpen && flags.isEnter) {
+    key.preventDefault()
+    key.stopPropagation()
+    void submitDiscardAction()
+    return true
+  }
+
+  if (discardDialogOpen && focus === "discard-dialog-list" && key.name === "up") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveDiscardSelectionUp()
+    return true
+  }
+
+  if (discardDialogOpen && focus === "discard-dialog-list" && key.name === "down") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveDiscardSelectionDown()
     return true
   }
 
@@ -310,6 +337,11 @@ export function handleDialogKeys({
       return true
     }
 
+    if (discardDialogOpen) {
+      closeDiscardDialog()
+      return true
+    }
+
     if (historyDialogOpen) {
       if (historyDialogMode === "action") {
         backToHistoryCommitList()
@@ -350,6 +382,11 @@ export function handleDialogKeys({
 
     if (syncDialogOpen) {
       setFocus("sync-dialog-list")
+      return true
+    }
+
+    if (discardDialogOpen) {
+      setFocus("discard-dialog-list")
       return true
     }
 

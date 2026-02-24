@@ -13,6 +13,7 @@ export function resolveKeyboardFlags(
   dialogs: {
     commitDialogOpen: boolean
     syncDialogOpen: boolean
+    discardDialogOpen: boolean
     mergeConflictDialogOpen: boolean
     branchDialogOpen: boolean
     historyDialogOpen: boolean
@@ -32,6 +33,7 @@ export function resolveKeyboardFlags(
   const isDialogOpen =
     dialogs.commitDialogOpen ||
     dialogs.syncDialogOpen ||
+    dialogs.discardDialogOpen ||
     dialogs.mergeConflictDialogOpen ||
     dialogs.branchDialogOpen ||
     dialogs.historyDialogOpen ||

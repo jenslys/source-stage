@@ -6,6 +6,7 @@ import { CommitHistoryDialog } from "./ui/components/commit-history-dialog"
 import { useGitTuiController } from "./hooks/use-git-tui-controller"
 import { CommitDialog } from "./ui/components/commit-dialog"
 import { DiffWorkspace } from "./ui/components/diff-workspace"
+import { DiscardDialog } from "./ui/components/discard-dialog"
 import { FooterBar } from "./ui/components/footer-bar"
 import { MergeConflictDialog } from "./ui/components/merge-conflict-dialog"
 import { ShortcutsDialog } from "./ui/components/shortcuts-dialog"
@@ -24,6 +25,7 @@ type ActiveScreen =
   | "history"
   | "shortcuts"
   | "sync"
+  | "discard"
   | "merge-conflict"
 
 export function App({ config }: AppProps) {
@@ -33,17 +35,19 @@ export function App({ config }: AppProps) {
   const controller = useGitTuiController(renderer, config)
   const activeScreen: ActiveScreen = controller.mergeConflictDialogOpen
     ? "merge-conflict"
-    : controller.syncDialogOpen
-      ? "sync"
-      : controller.branchDialogOpen
-        ? "branch"
-        : controller.commitDialogOpen
-          ? "commit"
-          : controller.historyDialogOpen
-            ? "history"
-            : controller.shortcutsDialogOpen
-              ? "shortcuts"
-              : "main"
+    : controller.discardDialogOpen
+      ? "discard"
+      : controller.syncDialogOpen
+        ? "sync"
+        : controller.branchDialogOpen
+          ? "branch"
+          : controller.commitDialogOpen
+            ? "commit"
+            : controller.historyDialogOpen
+              ? "history"
+              : controller.shortcutsDialogOpen
+                ? "shortcuts"
+                : "main"
   const footerHint = resolveFooterHint({
     activeScreen,
     branchDialogMode: controller.branchDialogMode,
@@ -252,6 +256,29 @@ export function App({ config }: AppProps) {
         />
       ) : null}
 
+      {activeScreen === "discard" ? (
+        <DiscardDialog
+          open={true}
+          focus={controller.focus}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+          path={controller.discardPath ?? ""}
+          options={controller.discardOptions}
+          optionIndex={controller.discardOptionIndex}
+          onOptionClick={(index) => {
+            controller.setDiscardSelection(index)
+          }}
+          onOptionScroll={(direction) => {
+            if (direction === "up") {
+              controller.moveDiscardSelectionUp()
+            } else {
+              controller.moveDiscardSelectionDown()
+            }
+          }}
+          theme={theme}
+        />
+      ) : null}
+
       {activeScreen === "merge-conflict" ? (
         <MergeConflictDialog
           open={true}
@@ -314,6 +341,7 @@ function resolveFooterHint({
   if (activeScreen === "commit") return "enter commit  esc cancel"
   if (activeScreen === "shortcuts") return "esc close"
   if (activeScreen === "sync") return "enter choose  esc back"
+  if (activeScreen === "discard") return "enter choose  esc back"
   if (activeScreen === "merge-conflict") return "enter open or finish  tab next panel  esc back"
   if (activeScreen === "history") {
     if (historyMode === "action") return "enter choose  esc back"

@@ -23,6 +23,7 @@ export function handleMainKeys({
     moveToPreviousFile,
     moveToNextFile,
     openCommitDialog,
+    openDiscardDialog,
     openSelectedFileInEditor,
     openBranchDialog,
     openHistoryDialog,
@@ -99,6 +100,19 @@ export function handleMainKeys({
     key.preventDefault()
     key.stopPropagation()
     void openSelectedFileInEditor()
+    return true
+  }
+
+  if (
+    !isDialogOpen &&
+    flags.isPlainShortcutKey &&
+    focus === "files" &&
+    fileCount > 0 &&
+    (key.name === "delete" || key.name === "backspace")
+  ) {
+    key.preventDefault()
+    key.stopPropagation()
+    openDiscardDialog()
     return true
   }
 
