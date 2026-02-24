@@ -65,13 +65,23 @@ export function CommitHistoryDialog({
   theme,
 }: CommitHistoryDialogProps) {
   if (!open) return null
-  const visibleRows = Math.max(1, terminalHeight - 14)
+  const listVisibleRows = Math.max(1, terminalHeight - 14)
+  const commitVisibleRows = Math.max(1, Math.floor(listVisibleRows / 2))
+  const actionVisibleRows = Math.max(1, Math.floor(listVisibleRows / 2))
   const { commitsPaneWidth, filesPaneWidth } = getPaneWidths(terminalWidth)
   const commitRowWidth = Math.max(commitsPaneWidth - 4, 1)
   const fileRowWidth = Math.max(filesPaneWidth - 4, 1)
-  const commitRange = getVisibleRange(commitOptions.length, commitIndex, visibleRows)
-  const actionRange = getVisibleRange(actionOptions.length, actionIndex, visibleRows)
-  const fileRange = getVisibleRange(fileOptions.length, fileIndex, visibleRows)
+  const commitRange = getVisibleRange(
+    commitOptions.length,
+    commitIndex,
+    mode === "list" ? commitVisibleRows : listVisibleRows,
+  )
+  const actionRange = getVisibleRange(
+    actionOptions.length,
+    actionIndex,
+    mode === "action" ? actionVisibleRows : listVisibleRows,
+  )
+  const fileRange = getVisibleRange(fileOptions.length, fileIndex, listVisibleRows)
   const leftPaneTitle = mode === "list" ? `commits (${commitOptions.length})` : "actions"
   const selectedPreviewTitle = mode === "action" ? selectedCommitTitle : selectedCommitPreviewTitle
   const rightPaneTitle = selectedFilePath || selectedPreviewTitle || "no file selected"
@@ -123,18 +133,34 @@ export function CommitHistoryDialog({
                     .map((option, visibleIndex) => {
                       const absoluteIndex = commitRange.start + visibleIndex
                       const selected = absoluteIndex === commitIndex
-                      const optionName = option.name ?? String(option.value ?? "")
-                      const optionDescription = option.description ?? ""
-                      const label = optionDescription
-                        ? `${optionDescription}  ${optionName}`
-                        : optionName
+                      const subject = option.name ?? String(option.value ?? "")
+                      const metadata = option.description ?? ""
+                      const hash = String(option.value ?? "")
+                        .trim()
+                        .slice(0, 7)
+                      const prefix = selected ? "▶ " : "  "
+                      const hashReservedWidth = hash ? hash.length + 1 : 0
+                      const subjectWidth = Math.max(
+                        commitRowWidth - prefix.length - hashReservedWidth,
+                        1,
+                      )
+                      const metadataWidth = Math.max(commitRowWidth - 2, 1)
+                      const subjectLine = fitLine(subject, subjectWidth).padEnd(subjectWidth, " ")
+                      const commitTextColor = resolveRowTextColor({
+                        selected,
+                        focused: focus === "history-commits",
+                        theme,
+                      })
+                      const metadataTextColor = selected
+                        ? theme.colors.subtleText
+                        : theme.colors.hintText
 
                       return (
                         <box
-                          key={`${optionName}-${absoluteIndex}`}
+                          key={`${subject}-${absoluteIndex}`}
                           style={{
-                            height: 1,
-                            flexDirection: "row",
+                            height: 2,
+                            flexDirection: "column",
                             ...resolveRowBackground({
                               selected,
                               focused: focus === "history-commits",
@@ -147,16 +173,14 @@ export function CommitHistoryDialog({
                             onCommitClick(absoluteIndex)
                           }}
                         >
-                          <text
-                            fg={resolveRowTextColor({
-                              selected,
-                              focused: focus === "history-commits",
-                              theme,
-                            })}
-                          >
-                            {selected ? "▶ " : "  "}
-                            {fitLine(label, commitRowWidth)}
-                          </text>
+                          <box style={{ height: 1, flexDirection: "row" }}>
+                            <text fg={commitTextColor}>
+                              {prefix}
+                              {subjectLine}
+                            </text>
+                            {hash ? <text fg={theme.colors.mutedText}> {hash}</text> : null}
+                          </box>
+                          <text fg={metadataTextColor}> {fitLine(metadata, metadataWidth)}</text>
                         </box>
                       )
                     })
@@ -167,16 +191,25 @@ export function CommitHistoryDialog({
                       const selected = absoluteIndex === actionIndex
                       const optionName = option.name ?? String(option.value ?? "")
                       const optionDescription = option.description ?? ""
-                      const label = optionDescription
-                        ? `${optionName} - ${optionDescription}`
-                        : optionName
+                      const prefix = selected ? "▶ " : "  "
+                      const actionWidth = Math.max(commitRowWidth - prefix.length, 1)
+                      const detailWidth = Math.max(commitRowWidth - 2, 1)
+                      const actionLine = fitLine(optionName, actionWidth)
+                      const actionTextColor = resolveRowTextColor({
+                        selected,
+                        focused: focus === "history-actions",
+                        theme,
+                      })
+                      const detailTextColor = selected
+                        ? theme.colors.subtleText
+                        : theme.colors.hintText
 
                       return (
                         <box
                           key={`${optionName}-${absoluteIndex}`}
                           style={{
-                            height: 1,
-                            flexDirection: "row",
+                            height: 2,
+                            flexDirection: "column",
                             ...resolveRowBackground({
                               selected,
                               focused: focus === "history-actions",
@@ -189,15 +222,13 @@ export function CommitHistoryDialog({
                             onActionClick(absoluteIndex)
                           }}
                         >
-                          <text
-                            fg={resolveRowTextColor({
-                              selected,
-                              focused: focus === "history-actions",
-                              theme,
-                            })}
-                          >
-                            {selected ? "▶ " : "  "}
-                            {fitLine(label, commitRowWidth)}
+                          <text fg={actionTextColor}>
+                            {prefix}
+                            {actionLine}
+                          </text>
+                          <text fg={detailTextColor}>
+                            {" "}
+                            {fitLine(optionDescription, detailWidth)}
                           </text>
                         </box>
                       )

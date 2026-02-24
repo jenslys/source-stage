@@ -24,7 +24,7 @@ export function resolveHistoryAction(index: number): HistoryAction {
 
 export function toCommitOptions(commits: CommitHistoryEntry[]): SelectOption[] {
   return commits.map((commit) => ({
-    name: `${commit.shortHash} ${commit.subject}`,
+    name: commit.subject,
     description: `${commit.relativeDate} by ${commit.author}`,
     value: commit.hash,
   }))
