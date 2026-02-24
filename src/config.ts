@@ -17,6 +17,10 @@ export type StageConfig = {
   git: {
     autoStageOnCommit: boolean
   }
+  editor: {
+    command: string
+    args: string[]
+  }
   ai: {
     enabled: boolean
     provider: "cerebras"
@@ -46,6 +50,10 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
   },
   git: {
     autoStageOnCommit: true,
+  },
+  editor: {
+    command: "",
+    args: ["{file}"],
   },
   ai: {
     enabled: false,

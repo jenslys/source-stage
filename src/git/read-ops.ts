@@ -112,6 +112,18 @@ export async function listCommitFiles(
   return parseCommitFileChangesNul(result.stdout)
 }
 
+export async function listMergeConflictPaths(runGit: RunGit): Promise<string[]> {
+  const result = await runGit(["diff", "--name-only", "--diff-filter=U", "-z"])
+  if (!result.stdout) {
+    return []
+  }
+
+  return result.stdout
+    .split("\u0000")
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
 export async function diffForCommitFile(
   commitHash: string,
   path: string,

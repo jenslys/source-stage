@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react"
 
-export type RunTask = (label: string, task: () => Promise<void>) => Promise<boolean>
+type RunTaskOptions = {
+  onError?: (error: Error) => void
+}
+
+export type RunTask = (
+  label: string,
+  task: () => Promise<void>,
+  options?: RunTaskOptions,
+) => Promise<boolean>
 const TASK_COMPLETE_RESET_MS = 1800
 
 export function useTaskRunner(initialStatusMessage = "Initializing...") {
@@ -43,7 +51,7 @@ export function useTaskRunner(initialStatusMessage = "Initializing...") {
   useEffect(() => clearStatusResetTimer, [clearStatusResetTimer])
 
   const runTask = useCallback<RunTask>(
-    async (label, task) => {
+    async (label, task, options) => {
       if (busyRef.current) {
         return false
       }
@@ -58,8 +66,9 @@ export function useTaskRunner(initialStatusMessage = "Initializing...") {
         scheduleIdleStatus()
         return true
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        setStatusMessage(`Error: ${message}`)
+        const normalizedError = error instanceof Error ? error : new Error(String(error))
+        options?.onError?.(normalizedError)
+        setStatusMessage(`Error: ${normalizedError.message}`)
         return false
       } finally {
         busyRef.current = false

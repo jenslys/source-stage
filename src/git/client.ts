@@ -1,12 +1,14 @@
 import { runGitRaw, type GitCommandResult } from "../git-process"
+import { openFileInEditor } from "../editor-launcher"
 import {
   diffForCommitFile,
   diffForFile,
   listCommitFiles,
   listCommits,
+  listMergeConflictPaths,
   snapshotRepo,
 } from "./read-ops"
-import { runWithStashedChanges } from "./stash"
+import { runWithStashedChanges, runWithTemporaryStash } from "./stash"
 import {
   DEFAULT_GIT_CLIENT_OPTIONS,
   type GitClientOptions,
@@ -14,12 +16,22 @@ import {
   type RunGitOptions,
 } from "./types"
 import {
+  abortMerge,
   checkoutBranch,
   checkoutCommit,
   commitChanges,
+  completeMergeCommit,
   createAndCheckoutBranch,
+  deleteLocalBranch,
+  deleteRemoteBranch,
   fetchRepo,
+  hasWorkingTreeChanges,
+  isMergeInProgress,
+  markConflictResolved,
+  mergeRemoteMain,
+  popStashRef,
   pullRepo,
+  pullRepoMerge,
   pushRepo,
   revertCommit,
 } from "./write-ops"
@@ -73,8 +85,76 @@ export class GitClient {
     await pullRepo(this.runGit)
   }
 
+  async pullMerge(): Promise<void> {
+    await pullRepoMerge(this.runGit)
+  }
+
+  async pullMergePreservingChanges(): Promise<void> {
+    const dirty = await hasWorkingTreeChanges(this.runGit)
+    if (!dirty) {
+      await pullRepoMerge(this.runGit)
+      return
+    }
+    await runWithTemporaryStash(() => pullRepoMerge(this.runGit), this.runGit, {
+      shouldKeepStashOnError: async () => isMergeInProgress(this.runGit),
+    })
+  }
+
+  async pullFastForwardPreservingChanges(): Promise<void> {
+    const dirty = await hasWorkingTreeChanges(this.runGit)
+    if (!dirty) {
+      await pullRepo(this.runGit)
+      return
+    }
+    await runWithTemporaryStash(() => pullRepo(this.runGit), this.runGit)
+  }
+
   async push(): Promise<void> {
     await pushRepo(this.runGit)
+  }
+
+  async mergeRemoteMain(): Promise<string> {
+    return mergeRemoteMain(this.runGit)
+  }
+
+  async isMergeInProgress(): Promise<boolean> {
+    return isMergeInProgress(this.runGit)
+  }
+
+  async listMergeConflictPaths(): Promise<string[]> {
+    return listMergeConflictPaths(this.runGit)
+  }
+
+  async markConflictResolved(path: string): Promise<void> {
+    await markConflictResolved(path, this.runGit)
+  }
+
+  async completeMergeCommit(): Promise<void> {
+    await completeMergeCommit(this.runGit)
+  }
+
+  async abortMerge(): Promise<void> {
+    await abortMerge(this.runGit)
+  }
+
+  async restoreStashRef(stashRef: string): Promise<void> {
+    await popStashRef(stashRef, this.runGit)
+  }
+
+  async openInEditor(
+    path: string,
+    editor: {
+      command: string
+      args: string[]
+    },
+    line?: number,
+  ): Promise<void> {
+    await openFileInEditor({
+      root: this.root,
+      path,
+      line,
+      editor,
+    })
   }
 
   async listCommits(limit = this.options.historyLimit) {
@@ -91,6 +171,14 @@ export class GitClient {
 
   async checkout(branch: string): Promise<void> {
     await checkoutBranch(branch, this.runGit)
+  }
+
+  async deleteLocalBranch(branch: string): Promise<void> {
+    await deleteLocalBranch(branch, this.runGit)
+  }
+
+  async deleteRemoteBranch(branch: string): Promise<void> {
+    await deleteRemoteBranch(branch, this.runGit)
   }
 
   async checkoutLeavingChanges(branch: string): Promise<void> {

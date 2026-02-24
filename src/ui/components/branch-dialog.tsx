@@ -17,14 +17,19 @@ type BranchDialogProps = {
   currentBranch: string
   branchOptions: SelectOption[]
   branchIndex: number
+  selectedBranchForAction: string | null
+  branchActionOptions: SelectOption[]
+  branchActionIndex: number
   branchStrategyOptions: SelectOption[]
   branchStrategyIndex: number
   branchName: string
   branchNameRef: RefObject<InputRenderable | null>
   onBranchNameInput: (value: string) => void
   onBranchClick: (index: number) => void
+  onBranchActionClick: (index: number) => void
   onBranchStrategyClick: (index: number) => void
   onBranchScroll: (direction: "up" | "down") => void
+  onBranchActionScroll: (direction: "up" | "down") => void
   onBranchStrategyScroll: (direction: "up" | "down") => void
   theme: UiTheme
 }
@@ -38,14 +43,19 @@ export function BranchDialog({
   currentBranch,
   branchOptions,
   branchIndex,
+  selectedBranchForAction,
+  branchActionOptions,
+  branchActionIndex,
   branchStrategyOptions,
   branchStrategyIndex,
   branchName,
   branchNameRef,
   onBranchNameInput,
   onBranchClick,
+  onBranchActionClick,
   onBranchStrategyClick,
   onBranchScroll,
+  onBranchActionScroll,
   onBranchStrategyScroll,
   theme,
 }: BranchDialogProps) {
@@ -63,6 +73,11 @@ export function BranchDialog({
   const strategyRange = getVisibleRange(
     branchStrategyOptions.length,
     branchStrategyIndex,
+    visibleOptionRows,
+  )
+  const actionRange = getVisibleRange(
+    branchActionOptions.length,
+    branchActionIndex,
     visibleOptionRows,
   )
   const rowWidth = Math.max(resolveViewContentWidth(terminalWidth) - 2, 12)
@@ -143,6 +158,57 @@ export function BranchDialog({
                         event.preventDefault()
                         event.stopPropagation()
                         onBranchClick(absoluteIndex)
+                      }}
+                    >
+                      <text
+                        style={{ width: "100%" }}
+                        fg={selected ? theme.colors.selectSelectedText : theme.colors.text}
+                      >
+                        {selected ? "▶ " : "  "}
+                        {fitLine(label, labelWidth)}
+                      </text>
+                    </box>
+                  )
+                })}
+            </box>
+          </>
+        ) : mode === "action" ? (
+          <>
+            <text fg={theme.colors.subtleText}>selected: {selectedBranchForAction ?? "-"}</text>
+            <box
+              style={{ width: "100%", flexDirection: "column" }}
+              onMouseScroll={(event) => {
+                const direction = event.scroll?.direction
+                if (direction !== "up" && direction !== "down") return
+                event.preventDefault()
+                event.stopPropagation()
+                onBranchActionScroll(direction)
+              }}
+            >
+              {branchActionOptions
+                .slice(actionRange.start, actionRange.end)
+                .map((option, visibleIndex) => {
+                  const absoluteIndex = actionRange.start + visibleIndex
+                  const selected = absoluteIndex === branchActionIndex
+                  const optionName = option.name ?? String(option.value ?? "")
+                  const optionDescription = option.description ?? ""
+                  const label = optionDescription
+                    ? `${optionName} - ${optionDescription}`
+                    : optionName
+                  return (
+                    <box
+                      key={`${optionName}-${absoluteIndex}`}
+                      style={{
+                        height: 1,
+                        flexDirection: "row",
+                        ...(selected
+                          ? { backgroundColor: theme.colors.selectSelectedBackground }
+                          : {}),
+                      }}
+                      onMouseDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onBranchActionClick(absoluteIndex)
                       }}
                     >
                       <text

@@ -20,16 +20,23 @@ export function handleDialogKeys({
   const {
     renderer,
     commitDialogOpen,
+    syncDialogOpen,
+    mergeConflictDialogOpen,
     branchDialogOpen,
     branchDialogMode,
     historyDialogOpen,
     historyDialogMode,
     shortcutsDialogOpen,
     closeShortcutsDialog,
+    closeSyncDialog,
+    closeMergeConflictDialog,
     openShortcutsDialog,
     focus,
     setFocus,
     submitHistoryAction,
+    submitSyncAction,
+    submitMergeConflictAction,
+    openSelectedMergeConflictFileInEditor,
     submitHistoryCommitSelection,
     moveCommitSelectionUp,
     moveCommitSelectionDown,
@@ -38,12 +45,21 @@ export function handleDialogKeys({
     moveHistoryFileSelectionUp,
     moveHistoryFileSelectionDown,
     createBranchAndCheckout,
+    submitBranchAction,
     submitBranchStrategy,
     submitBranchSelection,
+    moveBranchActionUp,
+    moveBranchActionDown,
     moveBranchStrategyUp,
     moveBranchStrategyDown,
     moveBranchSelectionUp,
     moveBranchSelectionDown,
+    moveSyncSelectionUp,
+    moveSyncSelectionDown,
+    moveMergeConflictFileUp,
+    moveMergeConflictFileDown,
+    moveMergeConflictActionUp,
+    moveMergeConflictActionDown,
     commitChanges,
     backToHistoryCommitList,
     closeHistoryDialog,
@@ -62,7 +78,14 @@ export function handleDialogKeys({
     }
   }
 
-  if (!commitDialogOpen && !branchDialogOpen && !historyDialogOpen && flags.isHelpKey) {
+  if (
+    !commitDialogOpen &&
+    !syncDialogOpen &&
+    !mergeConflictDialogOpen &&
+    !branchDialogOpen &&
+    !historyDialogOpen &&
+    flags.isHelpKey
+  ) {
     key.preventDefault()
     key.stopPropagation()
     if (shortcutsDialogOpen) {
@@ -79,6 +102,83 @@ export function handleDialogKeys({
       key.stopPropagation()
       closeShortcutsDialog()
     }
+    return true
+  }
+
+  if (syncDialogOpen && flags.isEnter) {
+    key.preventDefault()
+    key.stopPropagation()
+    void submitSyncAction()
+    return true
+  }
+
+  if (syncDialogOpen && focus === "sync-dialog-list" && key.name === "up") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveSyncSelectionUp()
+    return true
+  }
+
+  if (syncDialogOpen && focus === "sync-dialog-list" && key.name === "down") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveSyncSelectionDown()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && flags.isEnter && focus === "merge-conflict-files") {
+    key.preventDefault()
+    key.stopPropagation()
+    void openSelectedMergeConflictFileInEditor()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && flags.isEnter) {
+    key.preventDefault()
+    key.stopPropagation()
+    void submitMergeConflictAction()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && focus === "merge-conflict-files" && key.name === "up") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveMergeConflictFileUp()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && focus === "merge-conflict-files" && key.name === "down") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveMergeConflictFileDown()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && focus === "merge-conflict-actions" && key.name === "up") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveMergeConflictActionUp()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && focus === "merge-conflict-actions" && key.name === "down") {
+    key.preventDefault()
+    key.stopPropagation()
+    moveMergeConflictActionDown()
+    return true
+  }
+
+  if (mergeConflictDialogOpen && key.name === "left") {
+    key.preventDefault()
+    key.stopPropagation()
+    setFocus("merge-conflict-files")
+    return true
+  }
+
+  if (mergeConflictDialogOpen && key.name === "right") {
+    key.preventDefault()
+    key.stopPropagation()
+    setFocus("merge-conflict-actions")
     return true
   }
 
@@ -153,6 +253,8 @@ export function handleDialogKeys({
       void createBranchAndCheckout()
     } else if (branchDialogMode === "confirm") {
       void submitBranchStrategy()
+    } else if (branchDialogMode === "action") {
+      void submitBranchAction()
     } else {
       void submitBranchSelection()
     }
@@ -164,6 +266,8 @@ export function handleDialogKeys({
     key.stopPropagation()
     if (branchDialogMode === "confirm") {
       moveBranchStrategyUp()
+    } else if (branchDialogMode === "action") {
+      moveBranchActionUp()
     } else {
       moveBranchSelectionUp()
     }
@@ -175,6 +279,8 @@ export function handleDialogKeys({
     key.stopPropagation()
     if (branchDialogMode === "confirm") {
       moveBranchStrategyDown()
+    } else if (branchDialogMode === "action") {
+      moveBranchActionDown()
     } else {
       moveBranchSelectionDown()
     }
@@ -189,6 +295,16 @@ export function handleDialogKeys({
   }
 
   if (key.name === "escape") {
+    if (mergeConflictDialogOpen) {
+      closeMergeConflictDialog()
+      return true
+    }
+
+    if (syncDialogOpen) {
+      closeSyncDialog()
+      return true
+    }
+
     if (historyDialogOpen) {
       if (historyDialogMode === "action") {
         backToHistoryCommitList()
@@ -220,6 +336,18 @@ export function handleDialogKeys({
   if (key.name === "tab") {
     key.preventDefault()
     key.stopPropagation()
+    if (mergeConflictDialogOpen) {
+      setFocus((current) =>
+        current === "merge-conflict-actions" ? "merge-conflict-files" : "merge-conflict-actions",
+      )
+      return true
+    }
+
+    if (syncDialogOpen) {
+      setFocus("sync-dialog-list")
+      return true
+    }
+
     if (branchDialogOpen) {
       setFocus(branchDialogMode === "create" ? "branch-create" : "branch-dialog-list")
       return true

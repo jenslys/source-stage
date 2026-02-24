@@ -7,7 +7,9 @@ import { useGitTuiController } from "./hooks/use-git-tui-controller"
 import { CommitDialog } from "./ui/components/commit-dialog"
 import { DiffWorkspace } from "./ui/components/diff-workspace"
 import { FooterBar } from "./ui/components/footer-bar"
+import { MergeConflictDialog } from "./ui/components/merge-conflict-dialog"
 import { ShortcutsDialog } from "./ui/components/shortcuts-dialog"
+import { SyncDialog } from "./ui/components/sync-dialog"
 import { TopBar } from "./ui/components/top-bar"
 import { resolveUiTheme } from "./ui/theme"
 
@@ -15,22 +17,33 @@ type AppProps = {
   config: StageConfig
 }
 
-type ActiveScreen = "main" | "branch" | "commit" | "history" | "shortcuts"
+type ActiveScreen =
+  | "main"
+  | "branch"
+  | "commit"
+  | "history"
+  | "shortcuts"
+  | "sync"
+  | "merge-conflict"
 
 export function App({ config }: AppProps) {
   const renderer = useRenderer()
   const { width: terminalWidth = 0, height: terminalHeight = 0 } = useTerminalDimensions()
   const theme = resolveUiTheme(config.ui.theme)
   const controller = useGitTuiController(renderer, config)
-  const activeScreen: ActiveScreen = controller.branchDialogOpen
-    ? "branch"
-    : controller.commitDialogOpen
-      ? "commit"
-      : controller.historyDialogOpen
-        ? "history"
-        : controller.shortcutsDialogOpen
-          ? "shortcuts"
-          : "main"
+  const activeScreen: ActiveScreen = controller.mergeConflictDialogOpen
+    ? "merge-conflict"
+    : controller.syncDialogOpen
+      ? "sync"
+      : controller.branchDialogOpen
+        ? "branch"
+        : controller.commitDialogOpen
+          ? "commit"
+          : controller.historyDialogOpen
+            ? "history"
+            : controller.shortcutsDialogOpen
+              ? "shortcuts"
+              : "main"
   const footerHint = resolveFooterHint({
     activeScreen,
     branchDialogMode: controller.branchDialogMode,
@@ -90,6 +103,9 @@ export function App({ config }: AppProps) {
           currentBranch={controller.currentBranch}
           branchOptions={controller.branchOptions}
           branchIndex={controller.branchIndex}
+          selectedBranchForAction={controller.selectedBranchForAction}
+          branchActionOptions={controller.branchActionOptions}
+          branchActionIndex={controller.branchActionIndex}
           branchStrategyOptions={controller.branchStrategyOptions}
           branchStrategyIndex={controller.branchStrategyIndex}
           branchName={controller.newBranchName}
@@ -98,6 +114,10 @@ export function App({ config }: AppProps) {
           onBranchClick={(index) => {
             controller.focusBranchDialogList()
             controller.setBranchSelection(index)
+          }}
+          onBranchActionClick={(index) => {
+            controller.focusBranchDialogList()
+            controller.setBranchActionSelection(index)
           }}
           onBranchStrategyClick={(index) => {
             controller.focusBranchDialogList()
@@ -117,6 +137,14 @@ export function App({ config }: AppProps) {
               controller.moveBranchStrategyUp()
             } else {
               controller.moveBranchStrategyDown()
+            }
+          }}
+          onBranchActionScroll={(direction) => {
+            controller.focusBranchDialogList()
+            if (direction === "up") {
+              controller.moveBranchActionUp()
+            } else {
+              controller.moveBranchActionDown()
             }
           }}
           theme={theme}
@@ -201,6 +229,65 @@ export function App({ config }: AppProps) {
         <ShortcutsDialog open={true} aiCommitEnabled={config.ai.enabled} theme={theme} />
       ) : null}
 
+      {activeScreen === "sync" ? (
+        <SyncDialog
+          open={true}
+          focus={controller.focus}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+          options={controller.syncOptions}
+          optionIndex={controller.syncOptionIndex}
+          details={controller.syncDetails}
+          onOptionClick={(index) => {
+            controller.setSyncSelection(index)
+          }}
+          onOptionScroll={(direction) => {
+            if (direction === "up") {
+              controller.moveSyncSelectionUp()
+            } else {
+              controller.moveSyncSelectionDown()
+            }
+          }}
+          theme={theme}
+        />
+      ) : null}
+
+      {activeScreen === "merge-conflict" ? (
+        <MergeConflictDialog
+          open={true}
+          focus={controller.focus}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+          currentBranch={controller.currentBranch}
+          details={controller.mergeConflictDetails}
+          conflictFileOptions={controller.mergeConflictFileOptions}
+          conflictFileIndex={controller.mergeConflictFileIndex}
+          actionOptions={controller.mergeConflictActionOptions}
+          actionIndex={controller.mergeConflictActionIndex}
+          onConflictFileClick={(index) => {
+            controller.setMergeConflictFileSelection(index)
+          }}
+          onConflictActionClick={(index) => {
+            controller.setMergeConflictActionSelection(index)
+          }}
+          onConflictFileScroll={(direction) => {
+            if (direction === "up") {
+              controller.moveMergeConflictFileUp()
+            } else {
+              controller.moveMergeConflictFileDown()
+            }
+          }}
+          onConflictActionScroll={(direction) => {
+            if (direction === "up") {
+              controller.moveMergeConflictActionUp()
+            } else {
+              controller.moveMergeConflictActionDown()
+            }
+          }}
+          theme={theme}
+        />
+      ) : null}
+
       <FooterBar
         statusMessage={controller.statusMessage}
         showShortcutsHint={config.ui.showShortcutsHint}
@@ -220,18 +307,21 @@ function resolveFooterHint({
   historyMode,
 }: {
   activeScreen: ActiveScreen
-  branchDialogMode: "select" | "confirm" | "create"
+  branchDialogMode: "select" | "action" | "confirm" | "create"
   historyMode: "list" | "action"
 }): string {
   if (activeScreen === "main") return "[?] shortcuts"
   if (activeScreen === "commit") return "enter commit  esc cancel"
   if (activeScreen === "shortcuts") return "esc close"
+  if (activeScreen === "sync") return "enter run action  esc cancel"
+  if (activeScreen === "merge-conflict") return "tab switch pane  enter action  esc close"
   if (activeScreen === "history") {
     if (historyMode === "action") return "enter confirm  esc back"
     return "tab switch pane  enter actions  esc close"
   }
 
   if (branchDialogMode === "confirm") return "enter confirm  esc back"
+  if (branchDialogMode === "action") return "enter run action  esc back"
   if (branchDialogMode === "create") return "enter create  esc back"
-  return "enter checkout  esc close"
+  return "enter choose branch  esc close"
 }

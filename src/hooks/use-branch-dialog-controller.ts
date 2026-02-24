@@ -17,6 +17,7 @@ type BranchChangeStrategy = "bring" | "leave"
 type PendingBranchAction =
   | { kind: "checkout"; branch: string }
   | { kind: "create"; branchName: string }
+type BranchActionOptionValue = "checkout" | "delete-local" | "delete-remote" | "cancel"
 
 type UseBranchDialogControllerParams = {
   git: GitClient | null
@@ -52,8 +53,10 @@ export function useBranchDialogController({
   const [branchDialogOpen, setBranchDialogOpen] = useState(false)
   const [branchDialogMode, setBranchDialogMode] = useState<BranchDialogMode>("select")
   const [branchIndex, setBranchIndex] = useState(0)
+  const [branchActionIndex, setBranchActionIndex] = useState(0)
   const [branchStrategyIndex, setBranchStrategyIndex] = useState(0)
   const [pendingBranchAction, setPendingBranchAction] = useState<PendingBranchAction | null>(null)
+  const [selectedBranchForAction, setSelectedBranchForAction] = useState<string | null>(null)
   const [newBranchName, setNewBranchName] = useState("")
   const branchNames = snapshot?.branches ?? []
 
@@ -68,11 +71,45 @@ export function useBranchDialogController({
     ],
     [branchNames, snapshot?.branch],
   )
+  const branchActionOptions = useMemo<SelectOption[]>(() => {
+    const branch = selectedBranchForAction?.trim()
+    if (!branch) return []
+    const isCurrentBranch = branch === snapshot?.branch
+    const options: SelectOption[] = [
+      {
+        name: "checkout branch",
+        description: isCurrentBranch ? "already on this branch" : "switch to this branch",
+        value: "checkout",
+      },
+    ]
+    if (!isCurrentBranch) {
+      options.push({
+        name: "delete local branch",
+        description: "safe delete only (git branch -d)",
+        value: "delete-local",
+      })
+    }
+    options.push(
+      {
+        name: "delete remote branch",
+        description: "delete origin/<branch>",
+        value: "delete-remote",
+      },
+      {
+        name: "cancel",
+        description: "return to branch list",
+        value: "cancel",
+      },
+    )
+    return options
+  }, [selectedBranchForAction, snapshot?.branch])
 
   const openBranchDialog = useCallback(() => {
     setBranchDialogOpen(true)
     setBranchDialogMode("select")
     setPendingBranchAction(null)
+    setSelectedBranchForAction(null)
+    setBranchActionIndex(0)
     setNewBranchName("")
     setBranchStrategyIndex(0)
     setFocus("branch-dialog-list")
@@ -89,6 +126,8 @@ export function useBranchDialogController({
     setBranchDialogOpen(false)
     setBranchDialogMode("select")
     setPendingBranchAction(null)
+    setSelectedBranchForAction(null)
+    setBranchActionIndex(0)
     setBranchStrategyIndex(0)
     setNewBranchName("")
     setFocus("files")
@@ -97,6 +136,8 @@ export function useBranchDialogController({
   const showBranchCreateInput = useCallback(() => {
     setBranchDialogMode("create")
     setPendingBranchAction(null)
+    setSelectedBranchForAction(null)
+    setBranchActionIndex(0)
     setBranchStrategyIndex(0)
     setNewBranchName("")
     setFocus("branch-create")
@@ -105,10 +146,22 @@ export function useBranchDialogController({
   const showBranchDialogList = useCallback(() => {
     setBranchDialogMode("select")
     setPendingBranchAction(null)
+    setSelectedBranchForAction(null)
+    setBranchActionIndex(0)
     setBranchStrategyIndex(0)
     setFocus("branch-dialog-list")
     setNewBranchName("")
   }, [setFocus])
+
+  const showBranchActionList = useCallback(
+    (branch: string) => {
+      setSelectedBranchForAction(branch)
+      setBranchActionIndex(0)
+      setBranchDialogMode("action")
+      setFocus("branch-dialog-list")
+    },
+    [setFocus],
+  )
 
   const performBranchTransition = useCallback(
     async (action: PendingBranchAction, strategy: BranchChangeStrategy): Promise<void> => {
@@ -161,19 +214,8 @@ export function useBranchDialogController({
       showBranchCreateInput()
       return
     }
-    if (optionValue === snapshot.branch) {
-      closeBranchDialog()
-      return
-    }
-    await requestBranchTransition({ kind: "checkout", branch: optionValue })
-  }, [
-    branchIndex,
-    branchOptions,
-    closeBranchDialog,
-    requestBranchTransition,
-    showBranchCreateInput,
-    snapshot,
-  ])
+    showBranchActionList(optionValue)
+  }, [branchIndex, branchOptions, showBranchActionList, showBranchCreateInput])
 
   const createBranchAndCheckout = useCallback(async (): Promise<void> => {
     const branchName = branchNameRef.current?.value ?? newBranchName
@@ -186,6 +228,60 @@ export function useBranchDialogController({
     const selectedValue = selectedOption?.value === "leave" ? "leave" : "bring"
     await performBranchTransition(pendingBranchAction, selectedValue)
   }, [branchStrategyIndex, pendingBranchAction, performBranchTransition])
+
+  const submitBranchAction = useCallback(async (): Promise<void> => {
+    if (!git || !selectedBranchForAction) return
+    const selected = branchActionOptions[branchActionIndex]
+    const action: BranchActionOptionValue =
+      selected?.value === "checkout" ||
+      selected?.value === "delete-local" ||
+      selected?.value === "delete-remote" ||
+      selected?.value === "cancel"
+        ? selected.value
+        : "cancel"
+
+    if (action === "cancel") {
+      showBranchDialogList()
+      return
+    }
+
+    if (action === "checkout") {
+      if (selectedBranchForAction === snapshot?.branch) {
+        closeBranchDialog()
+        return
+      }
+      await requestBranchTransition({ kind: "checkout", branch: selectedBranchForAction })
+      return
+    }
+
+    const label =
+      action === "delete-local"
+        ? `DELETE LOCAL ${selectedBranchForAction}`
+        : `DELETE REMOTE ${selectedBranchForAction}`
+    const succeeded = await runTask(label, async () => {
+      if (action === "delete-local") {
+        await git.deleteLocalBranch(selectedBranchForAction)
+      } else {
+        await git.deleteRemoteBranch(selectedBranchForAction)
+      }
+      await refreshSnapshot()
+    })
+
+    if (succeeded) {
+      showBranchDialogList()
+    }
+  }, [
+    branchActionIndex,
+    branchActionOptions,
+    closeBranchDialog,
+    git,
+    refreshSnapshot,
+    requestBranchTransition,
+    runTask,
+    selectedBranchForAction,
+    showBranchDialogList,
+    snapshot?.branch,
+  ])
 
   const moveBranchSelectionUp = useCallback(() => {
     setBranchIndex((current) => getPreviousIndex(current, branchOptions.length))
@@ -202,6 +298,14 @@ export function useBranchDialogController({
   const moveBranchStrategyDown = useCallback(() => {
     setBranchStrategyIndex((current) => getNextIndex(current, BRANCH_STRATEGY_OPTIONS.length))
   }, [])
+
+  const moveBranchActionUp = useCallback(() => {
+    setBranchActionIndex((current) => getPreviousIndex(current, branchActionOptions.length))
+  }, [branchActionOptions.length])
+
+  const moveBranchActionDown = useCallback(() => {
+    setBranchActionIndex((current) => getNextIndex(current, branchActionOptions.length))
+  }, [branchActionOptions.length])
 
   const setBranchSelection = useCallback(
     (index: number) => {
@@ -220,6 +324,16 @@ export function useBranchDialogController({
     setBranchStrategyIndex(normalized)
   }, [])
 
+  const setBranchActionSelection = useCallback(
+    (index: number) => {
+      const total = branchActionOptions.length
+      if (total <= 0) return
+      const normalized = clampSelectionIndex(index, total)
+      setBranchActionIndex(normalized)
+    },
+    [branchActionOptions.length],
+  )
+
   const focusBranchDialogList = useCallback(() => {
     setFocus("branch-dialog-list")
   }, [setFocus])
@@ -229,6 +343,9 @@ export function useBranchDialogController({
     branchDialogMode,
     branchOptions,
     branchIndex,
+    branchActionOptions,
+    branchActionIndex,
+    selectedBranchForAction,
     branchStrategyOptions: BRANCH_STRATEGY_OPTIONS,
     branchStrategyIndex,
     newBranchName,
@@ -236,14 +353,18 @@ export function useBranchDialogController({
     closeBranchDialog,
     showBranchDialogList,
     submitBranchSelection,
+    submitBranchAction,
     submitBranchStrategy,
     createBranchAndCheckout,
     moveBranchSelectionUp,
     moveBranchSelectionDown,
     moveBranchStrategyUp,
     moveBranchStrategyDown,
+    moveBranchActionUp,
+    moveBranchActionDown,
     setBranchSelection,
     setBranchStrategySelection,
+    setBranchActionSelection,
     focusBranchDialogList,
     onBranchNameInput: setNewBranchName,
   }

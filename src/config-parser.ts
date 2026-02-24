@@ -14,7 +14,11 @@ export function parseStageConfigToml(
   }
 
   const root = asRecord(parsed, `Config root in ${sourcePath}`)
-  assertNoUnknownKeys(root, ["ui", "history", "git", "ai"], `Config root in ${sourcePath}`)
+  assertNoUnknownKeys(
+    root,
+    ["ui", "history", "git", "editor", "ai"],
+    `Config root in ${sourcePath}`,
+  )
 
   const config = cloneConfig(defaultConfig)
 
@@ -81,6 +85,31 @@ export function parseStageConfigToml(
         git.auto_stage_on_commit,
         `git.auto_stage_on_commit in ${sourcePath}`,
       )
+    }
+  }
+
+  if (root.editor !== undefined) {
+    const editor = asRecord(root.editor, `[editor] in ${sourcePath}`)
+    assertNoUnknownKeys(editor, ["command", "args"], `[editor] in ${sourcePath}`)
+
+    if (editor.command !== undefined) {
+      if (typeof editor.command !== "string") {
+        throw new Error(`editor.command in ${sourcePath} must be a string.`)
+      }
+      config.editor.command = editor.command.trim()
+    }
+
+    if (editor.args !== undefined) {
+      if (!Array.isArray(editor.args)) {
+        throw new Error(`editor.args in ${sourcePath} must be an array of strings.`)
+      }
+      const args = editor.args.map((value, index) => {
+        if (typeof value !== "string") {
+          throw new Error(`editor.args[${index}] in ${sourcePath} must be a string.`)
+        }
+        return value
+      })
+      config.editor.args = args
     }
   }
 
@@ -187,6 +216,10 @@ function cloneConfig(config: StageConfig): StageConfig {
     },
     git: {
       autoStageOnCommit: config.git.autoStageOnCommit,
+    },
+    editor: {
+      command: config.editor.command,
+      args: [...config.editor.args],
     },
     ai: {
       enabled: config.ai.enabled,

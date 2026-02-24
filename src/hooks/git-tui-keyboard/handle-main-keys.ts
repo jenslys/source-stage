@@ -23,6 +23,7 @@ export function handleMainKeys({
     moveToPreviousFile,
     moveToNextFile,
     openCommitDialog,
+    openSelectedFileInEditor,
     openBranchDialog,
     openHistoryDialog,
     runTopAction,
@@ -94,6 +95,13 @@ export function handleMainKeys({
     return true
   }
 
+  if (!isDialogOpen && flags.isEnter && focus === "files" && fileCount > 0) {
+    key.preventDefault()
+    key.stopPropagation()
+    void openSelectedFileInEditor()
+    return true
+  }
+
   if (!isDialogOpen && key.ctrl && key.name === "r") {
     key.preventDefault()
     key.stopPropagation()
@@ -133,6 +141,13 @@ export function handleMainKeys({
     key.preventDefault()
     key.stopPropagation()
     void runTopAction("pull")
+    return true
+  }
+
+  if (!isDialogOpen && flags.isPlainShortcutKey && key.name === "u") {
+    key.preventDefault()
+    key.stopPropagation()
+    void runTopAction("merge-main")
     return true
   }
 

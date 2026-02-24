@@ -12,6 +12,8 @@ export function resolveKeyboardFlags(
   },
   dialogs: {
     commitDialogOpen: boolean
+    syncDialogOpen: boolean
+    mergeConflictDialogOpen: boolean
     branchDialogOpen: boolean
     historyDialogOpen: boolean
     shortcutsDialogOpen: boolean
@@ -29,6 +31,8 @@ export function resolveKeyboardFlags(
   const isEnter = key.name === "return" || key.name === "linefeed"
   const isDialogOpen =
     dialogs.commitDialogOpen ||
+    dialogs.syncDialogOpen ||
+    dialogs.mergeConflictDialogOpen ||
     dialogs.branchDialogOpen ||
     dialogs.historyDialogOpen ||
     dialogs.shortcutsDialogOpen

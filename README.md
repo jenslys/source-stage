@@ -88,6 +88,10 @@ limit = 200
 [git]
 auto_stage_on_commit = true
 
+[editor]
+command = ""                          # e.g. "code", "cursor", "zed"
+args = ["{file}"]                     # placeholders: {file}, {line}
+
 [ai]
 enabled = false
 provider = "cerebras"                # currently only supported provider
@@ -113,6 +117,7 @@ max_tokens_per_file = 4000
 - `r`: refresh
 - `f`: fetch
 - `p`: pull
+- `u`: merge remote main into current branch
 - `ctrl+p`: push
 - `esc`: close dialog (or exit from main view)
 

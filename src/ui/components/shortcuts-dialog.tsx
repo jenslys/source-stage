@@ -16,6 +16,7 @@ const BASE_SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
   ["r", "↻ refresh"],
   ["f", "⇣ fetch"],
   ["p", "⇩ pull"],
+  ["u", "⇄ merge remote main"],
   ["ctrl+p", "⇧ push"],
 ]
 
