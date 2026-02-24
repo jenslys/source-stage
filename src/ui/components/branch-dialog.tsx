@@ -6,6 +6,7 @@ import type { UiTheme } from "../theme"
 import type { BranchDialogMode, FocusTarget } from "../types"
 import { getVisibleRange } from "../list-range"
 import { fitLine } from "../utils"
+import { ViewFrame, resolveViewContentWidth, resolveVisibleRows } from "./view-frame"
 
 type BranchDialogProps = {
   open: boolean
@@ -49,7 +50,7 @@ export function BranchDialog({
   theme,
 }: BranchDialogProps) {
   if (!open) return null
-  const visibleOptionRows = Math.max(1, terminalHeight - 16)
+  const visibleOptionRows = resolveVisibleRows(terminalHeight, 16)
   const createOption = branchOptions[0]
   const checkoutOptions = branchOptions.slice(1)
   const checkoutSelectedIndex = Math.max(branchIndex - 1, 0)
@@ -64,29 +65,17 @@ export function BranchDialog({
     branchStrategyIndex,
     visibleOptionRows,
   )
-  const rowWidth = Math.max(Math.min(terminalWidth - 18, 80), 12)
+  const rowWidth = Math.max(resolveViewContentWidth(terminalWidth) - 2, 12)
   const labelWidth = Math.max(rowWidth - 2, 1)
 
   return (
-    <box
-      style={{
-        width: "100%",
-        flexGrow: 1,
-        paddingLeft: 6,
-        paddingRight: 6,
-        paddingTop: 8,
-        paddingBottom: 4,
-      }}
-    >
-      <box style={{ width: "100%", maxWidth: 88, gap: 1, flexDirection: "column", flexGrow: 1 }}>
+    <ViewFrame gap={1}>
+      <box style={{ width: "100%", gap: 1, flexDirection: "column", flexGrow: 1 }}>
         <text fg={theme.colors.title}>change branch</text>
         <text fg={theme.colors.subtleText}>current: {currentBranch}</text>
         <SectionDivider theme={theme} />
         {mode === "select" ? (
           <>
-            <text fg={theme.colors.subtleText}>
-              enter to checkout | select & enter to create branch | esc to close
-            </text>
             <box
               style={{ width: "100%", flexDirection: "column" }}
               onMouseScroll={(event) => {
@@ -170,9 +159,6 @@ export function BranchDialog({
           </>
         ) : mode === "confirm" ? (
           <>
-            <text fg={theme.colors.subtleText}>
-              what should happen to your working changes? | enter to continue | esc to go back
-            </text>
             <box
               style={{ width: "100%", flexDirection: "column" }}
               onMouseScroll={(event) => {
@@ -223,9 +209,6 @@ export function BranchDialog({
           </>
         ) : (
           <>
-            <text fg={theme.colors.subtleText}>
-              enter to create and checkout | invalid chars become "-" | esc to go back
-            </text>
             <input
               ref={branchNameRef}
               value={branchName}
@@ -238,6 +221,6 @@ export function BranchDialog({
           </>
         )}
       </box>
-    </box>
+    </ViewFrame>
   )
 }

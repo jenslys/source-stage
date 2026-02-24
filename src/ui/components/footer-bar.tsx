@@ -6,6 +6,7 @@ import type { UiTheme } from "../theme"
 type FooterBarProps = {
   statusMessage: string
   showShortcutsHint: boolean
+  hintText?: string
   terminalWidth: number
   fatalError: string | null
   isBusy: boolean
@@ -17,6 +18,7 @@ const SPINNER_FRAMES = "⣾⣽⣻⢿⡿⣟⣯⣷"
 export function FooterBar({
   statusMessage,
   showShortcutsHint,
+  hintText,
   terminalWidth,
   fatalError,
   isBusy,
@@ -40,7 +42,7 @@ export function FooterBar({
   const busyPrefix = isBusy ? `${SPINNER_FRAMES[spinnerIndex]} ` : ""
   const statusWithSpinner = `${busyPrefix}${statusMessage}`
   const footerInnerWidth = Math.max(terminalWidth - 2, 0)
-  const shortcutsHint = showShortcutsHint ? "[?] shortcuts" : ""
+  const shortcutsHint = showShortcutsHint ? (hintText ?? "[?] shortcuts") : ""
 
   if (!shortcutsHint) {
     const footerLine = fitFooterLine(statusWithSpinner, footerInnerWidth)

@@ -3,6 +3,7 @@ import type { RefObject } from "react"
 
 import type { UiTheme } from "../theme"
 import type { FocusTarget } from "../types"
+import { ViewFrame } from "./view-frame"
 
 type CommitDialogProps = {
   open: boolean
@@ -28,19 +29,8 @@ export function CommitDialog({
   if (!open) return null
 
   return (
-    <box
-      style={{
-        width: "100%",
-        flexGrow: 1,
-        paddingLeft: 6,
-        paddingRight: 6,
-        paddingTop: 4,
-        paddingBottom: 3,
-        gap: 1,
-      }}
-    >
+    <ViewFrame gap={1}>
       <text fg={theme.colors.title}>commit changes</text>
-      <text fg={theme.colors.subtleText}>enter to commit | esc to cancel</text>
       <box style={{ width: "100%", height: 3, flexDirection: "column", marginTop: 1 }}>
         <input
           ref={summaryRef}
@@ -63,6 +53,6 @@ export function CommitDialog({
           focusedTextColor={theme.colors.inputText}
         />
       </box>
-    </box>
+    </ViewFrame>
   )
 }

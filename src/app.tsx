@@ -15,12 +15,14 @@ type AppProps = {
   config: StageConfig
 }
 
+type ActiveScreen = "main" | "branch" | "commit" | "history" | "shortcuts"
+
 export function App({ config }: AppProps) {
   const renderer = useRenderer()
   const { width: terminalWidth = 0, height: terminalHeight = 0 } = useTerminalDimensions()
   const theme = resolveUiTheme(config.ui.theme)
   const controller = useGitTuiController(renderer, config)
-  const activeScreen = controller.branchDialogOpen
+  const activeScreen: ActiveScreen = controller.branchDialogOpen
     ? "branch"
     : controller.commitDialogOpen
       ? "commit"
@@ -29,6 +31,11 @@ export function App({ config }: AppProps) {
         : controller.shortcutsDialogOpen
           ? "shortcuts"
           : "main"
+  const footerHint = resolveFooterHint({
+    activeScreen,
+    branchDialogMode: controller.branchDialogMode,
+    historyMode: controller.historyMode,
+  })
 
   return (
     <box
@@ -197,6 +204,7 @@ export function App({ config }: AppProps) {
       <FooterBar
         statusMessage={controller.statusMessage}
         showShortcutsHint={config.ui.showShortcutsHint}
+        hintText={footerHint}
         terminalWidth={terminalWidth}
         fatalError={controller.fatalError}
         isBusy={controller.isBusy}
@@ -204,4 +212,26 @@ export function App({ config }: AppProps) {
       />
     </box>
   )
+}
+
+function resolveFooterHint({
+  activeScreen,
+  branchDialogMode,
+  historyMode,
+}: {
+  activeScreen: ActiveScreen
+  branchDialogMode: "select" | "confirm" | "create"
+  historyMode: "list" | "action"
+}): string {
+  if (activeScreen === "main") return "[?] shortcuts"
+  if (activeScreen === "commit") return "enter commit  esc cancel"
+  if (activeScreen === "shortcuts") return "esc close"
+  if (activeScreen === "history") {
+    if (historyMode === "action") return "enter confirm  esc back"
+    return "tab switch pane  enter actions  esc close"
+  }
+
+  if (branchDialogMode === "confirm") return "enter confirm  esc back"
+  if (branchDialogMode === "create") return "enter create  esc back"
+  return "enter checkout  esc close"
 }
