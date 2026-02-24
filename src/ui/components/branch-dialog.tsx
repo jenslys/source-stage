@@ -87,7 +87,7 @@ export function BranchDialog({
     <ViewFrame gap={1}>
       <box style={{ width: "100%", gap: 1, flexDirection: "column", flexGrow: 1 }}>
         <text fg={theme.colors.title}>change branch</text>
-        <text fg={theme.colors.subtleText}>current: {currentBranch}</text>
+        <text fg={theme.colors.subtleText}>branch: {currentBranch}</text>
         <SectionDivider theme={theme} />
         {mode === "select" ? (
           <>
@@ -130,7 +130,7 @@ export function BranchDialog({
               {checkoutOptions.length > 0 ? (
                 <box style={{ width: "100%", height: 1, flexDirection: "row" }}>
                   <text style={{ width: "100%" }} fg={theme.colors.subtleText}>
-                    {fitLine("checkout branches", labelWidth)}
+                    {fitLine("branches", labelWidth)}
                   </text>
                 </box>
               ) : null}
@@ -174,7 +174,7 @@ export function BranchDialog({
           </>
         ) : mode === "action" ? (
           <>
-            <text fg={theme.colors.subtleText}>selected: {selectedBranchForAction ?? "-"}</text>
+            <text fg={theme.colors.subtleText}>branch: {selectedBranchForAction ?? "-"}</text>
             <box
               style={{ width: "100%", flexDirection: "column" }}
               onMouseScroll={(event) => {

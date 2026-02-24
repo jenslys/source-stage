@@ -30,7 +30,7 @@ export function useGitInitialization({
         if (cancelled) return
         setGit(client)
         setFatalError(null)
-        setStatusMessage("Ready")
+        setStatusMessage("ready")
       } catch (error) {
         if (cancelled) return
         const message = error instanceof Error ? error.message : String(error)
@@ -144,7 +144,7 @@ export function useFileDiffLoader({
     if (!git || !selectedFilePath) {
       previousSelectedPathRef.current = null
       setDiffText("")
-      setDiffMessage("No file selected")
+      setDiffMessage("Pick a file to see changes")
       return
     }
 
@@ -155,7 +155,7 @@ export function useFileDiffLoader({
     let cancelled = false
     if (pathChanged) {
       setDiffText("")
-      setDiffMessage(`Loading diff: ${selectedPath}`)
+      setDiffMessage(`Loading changes: ${selectedPath}`)
     }
 
     const loadDiff = async () => {
@@ -163,14 +163,14 @@ export function useFileDiffLoader({
         const nextDiff = await git.diffForFile(selectedPath)
         if (cancelled) return
         setDiffText(nextDiff)
-        setDiffMessage(nextDiff.trim() ? null : `No diff output for ${selectedPath}`)
+        setDiffMessage(nextDiff.trim() ? null : `No visible changes for ${selectedPath}`)
       } catch (error) {
         if (cancelled) return
         const message = error instanceof Error ? error.message : String(error)
         if (pathChanged) {
           setDiffText("")
         }
-        setDiffMessage(`Failed to load diff: ${message}`)
+        setDiffMessage(`Could not load changes: ${message}`)
       }
     }
 

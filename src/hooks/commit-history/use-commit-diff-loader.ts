@@ -34,14 +34,14 @@ export function useCommitDiffLoader({
   useEffect(() => {
     if (!historyDialogOpen || !git) {
       setHistoryDiffText("")
-      setHistoryDiffMessage("Select a commit to view files")
+      setHistoryDiffMessage("Pick a commit to see files")
       return
     }
 
     const commit = selectedListCommit
     if (!commit) {
       setHistoryDiffText("")
-      setHistoryDiffMessage("Select a commit to view files")
+      setHistoryDiffMessage("Pick a commit to see files")
       return
     }
 
@@ -49,7 +49,7 @@ export function useCommitDiffLoader({
       if (historyFilesLoading) return
       setHistoryDiffText("")
       if (historyFilesCount > 0) {
-        setHistoryDiffMessage("Select a file to view diff")
+        setHistoryDiffMessage("Pick a file to see changes")
       } else {
         setHistoryDiffMessage(`No changed files in ${commit.shortHash} ${commit.subject}`)
       }
@@ -61,13 +61,13 @@ export function useCommitDiffLoader({
     if (cached !== undefined) {
       setHistoryDiffText(cached)
       setHistoryDiffMessage(
-        cached.trim() ? null : `No diff output for ${selectedHistoryFile.displayPath}`,
+        cached.trim() ? null : `No visible changes for ${selectedHistoryFile.displayPath}`,
       )
       return
     }
 
     setHistoryDiffText("")
-    setHistoryDiffMessage(`Loading diff: ${selectedHistoryFile.displayPath}`)
+    setHistoryDiffMessage(`Loading changes: ${selectedHistoryFile.displayPath}`)
 
     const requestId = historyDiffRequestIdRef.current + 1
     historyDiffRequestIdRef.current = requestId
@@ -80,13 +80,13 @@ export function useCommitDiffLoader({
         historyDiffCacheRef.current.set(cacheKey, nextDiff)
         setHistoryDiffText(nextDiff)
         setHistoryDiffMessage(
-          nextDiff.trim() ? null : `No diff output for ${selectedHistoryFile.displayPath}`,
+          nextDiff.trim() ? null : `No visible changes for ${selectedHistoryFile.displayPath}`,
         )
       } catch (error) {
         if (cancelled || historyDiffRequestIdRef.current !== requestId) return
         const message = error instanceof Error ? error.message : String(error)
         setHistoryDiffText("")
-        setHistoryDiffMessage(`Failed to load diff: ${message}`)
+        setHistoryDiffMessage(`Could not load changes: ${message}`)
       }
     }
 

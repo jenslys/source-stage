@@ -6,13 +6,13 @@ export type HistoryAction = "revert" | "checkout"
 
 export const ACTION_OPTIONS: SelectOption[] = [
   {
-    name: "revert commit",
-    description: "Create a new commit that reverts this one",
+    name: "revert this commit",
+    description: "make a new commit that undoes it",
     value: "revert",
   },
   {
-    name: "checkout commit",
-    description: "Move HEAD to this commit (detached)",
+    name: "checkout this commit",
+    description: "switch to this point in history",
     value: "checkout",
   },
 ]
@@ -25,7 +25,7 @@ export function resolveHistoryAction(index: number): HistoryAction {
 export function toCommitOptions(commits: CommitHistoryEntry[]): SelectOption[] {
   return commits.map((commit) => ({
     name: commit.subject,
-    description: `${commit.relativeDate} by ${commit.author}`,
+    description: `${commit.relativeDate}  ${commit.author}`,
     value: commit.hash,
   }))
 }

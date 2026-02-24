@@ -28,13 +28,13 @@ export function TopBar({ currentBranch, tracking, theme }: TopBarProps) {
         <text fg={theme.colors.text}>{currentBranch}</text>
       </box>
       {tracking.loading ? (
-        <text fg={theme.colors.subtleText}>… loading repository state</text>
+        <text fg={theme.colors.subtleText}>… loading</text>
       ) : (
         <box style={{ flexDirection: "row" }}>
           {tracking.upstream ? <text fg={theme.colors.subtleText}>{tracking.upstream}</text> : null}
-          {!tracking.upstream ? <text fg={theme.colors.subtleText}>◌ unpublished</text> : null}
+          {!tracking.upstream ? <text fg={theme.colors.subtleText}>◌ not pushed</text> : null}
           {tracking.upstream && tracking.ahead === 0 && tracking.behind === 0 ? (
-            <text fg={theme.colors.subtleText}> ✓ synced</text>
+            <text fg={theme.colors.subtleText}> ✓ up to date</text>
           ) : null}
           {tracking.ahead > 0 ? (
             <text fg={theme.colors.successText}> ↑{tracking.ahead}</text>

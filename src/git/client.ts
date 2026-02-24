@@ -1,3 +1,4 @@
+import { join } from "node:path"
 import { runGitRaw, type GitCommandResult } from "../git-process"
 import { openFileInEditor } from "../editor-launcher"
 import {
@@ -127,6 +128,20 @@ export class GitClient {
 
   async markConflictResolved(path: string): Promise<void> {
     await markConflictResolved(path, this.runGit)
+  }
+
+  async workingTreeFileHasConflictMarkers(path: string): Promise<boolean> {
+    const normalizedPath = path.trim()
+    if (!normalizedPath) {
+      throw new Error("Conflict file path is required.")
+    }
+
+    const file = Bun.file(join(this.root, normalizedPath))
+    if (!(await file.exists())) {
+      return false
+    }
+    const content = await file.text()
+    return /^(<{7}|={7}|>{7}|\|{7})( |$)/m.test(content)
   }
 
   async completeMergeCommit(): Promise<void> {

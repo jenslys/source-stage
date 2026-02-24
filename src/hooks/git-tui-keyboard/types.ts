@@ -22,6 +22,7 @@ export type UseGitTuiKeyboardParams = {
   setFocus: Dispatch<SetStateAction<FocusTarget>>
   focus: FocusTarget
   fileCount: number
+  mergeConflictFileCount: number
   moveToPreviousFile: () => void
   moveToNextFile: () => void
   openBranchDialog: () => void

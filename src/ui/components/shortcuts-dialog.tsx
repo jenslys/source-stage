@@ -8,23 +8,23 @@ type ShortcutsDialogProps = {
 }
 
 const BASE_SHORTCUT_ROWS: ReadonlyArray<readonly [string, string]> = [
-  ["?", "show/hide shortcuts"],
-  ["b", "⎇ change branch"],
-  ["h", "◷ open commit history"],
-  ["space", "include/exclude file in commit"],
+  ["?", "show or hide shortcuts"],
+  ["b", "change branch"],
+  ["h", "open commit history"],
+  ["space", "include or exclude file in commit"],
   ["↑ / ↓", "move file selection"],
   ["r", "↻ refresh"],
-  ["f", "⇣ fetch"],
-  ["p", "⇩ pull"],
-  ["u", "⇄ merge remote main"],
-  ["ctrl+p", "⇧ push"],
+  ["f", "fetch remote"],
+  ["p", "pull remote"],
+  ["u", "merge main into current branch"],
+  ["ctrl+p", "push"],
 ]
 
 export function ShortcutsDialog({ open, aiCommitEnabled, theme }: ShortcutsDialogProps) {
   if (!open) return null
   const commitRow: readonly [string, string] = aiCommitEnabled
-    ? ["c", "✦ generate AI commit"]
-    : ["c", "✓ open commit dialog"]
+    ? ["c", "make AI commit"]
+    : ["c", "open commit dialog"]
   const rows = [...BASE_SHORTCUT_ROWS, commitRow, ["esc", "close dialog or exit"]] as const
 
   return (

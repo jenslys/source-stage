@@ -313,15 +313,15 @@ function resolveFooterHint({
   if (activeScreen === "main") return "[?] shortcuts"
   if (activeScreen === "commit") return "enter commit  esc cancel"
   if (activeScreen === "shortcuts") return "esc close"
-  if (activeScreen === "sync") return "enter run action  esc cancel"
-  if (activeScreen === "merge-conflict") return "tab switch pane  enter action  esc close"
+  if (activeScreen === "sync") return "enter choose  esc back"
+  if (activeScreen === "merge-conflict") return "enter open or finish  tab next panel  esc back"
   if (activeScreen === "history") {
-    if (historyMode === "action") return "enter confirm  esc back"
-    return "tab switch pane  enter actions  esc close"
+    if (historyMode === "action") return "enter choose  esc back"
+    return "tab next panel  enter actions  esc close"
   }
 
-  if (branchDialogMode === "confirm") return "enter confirm  esc back"
-  if (branchDialogMode === "action") return "enter run action  esc back"
+  if (branchDialogMode === "confirm") return "enter choose  esc back"
+  if (branchDialogMode === "action") return "enter choose  esc back"
   if (branchDialogMode === "create") return "enter create  esc back"
-  return "enter choose branch  esc close"
+  return "enter choose branch  esc back"
 }

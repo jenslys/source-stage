@@ -11,7 +11,7 @@ export type RunTask = (
 ) => Promise<boolean>
 const TASK_COMPLETE_RESET_MS = 1800
 
-export function useTaskRunner(initialStatusMessage = "Initializing...") {
+export function useTaskRunner(initialStatusMessage = "starting...") {
   const busyRef = useRef(false)
   const statusResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const statusTokenRef = useRef(0)
@@ -43,7 +43,7 @@ export function useTaskRunner(initialStatusMessage = "Initializing...") {
       if (token !== statusTokenRef.current) {
         return
       }
-      setStatusMessageState("Ready")
+      setStatusMessageState("ready")
       statusResetTimerRef.current = null
     }, TASK_COMPLETE_RESET_MS)
   }, [clearStatusResetTimer])

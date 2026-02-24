@@ -73,7 +73,7 @@ export function useCommitFilesLoader({
     setHistoryFiles([])
     setHistoryFileIndex(0)
     setHistoryDiffText("")
-    setHistoryDiffMessage(`Loading files: ${commit.shortHash} ${commit.subject}`)
+    setHistoryDiffMessage(`Loading files for ${commit.shortHash} ${commit.subject}`)
 
     const requestId = historyFilesRequestIdRef.current + 1
     historyFilesRequestIdRef.current = requestId
@@ -94,7 +94,7 @@ export function useCommitFilesLoader({
         setHistoryFileIndex(0)
         setHistoryFilesLoading(false)
         setHistoryDiffText("")
-        setHistoryDiffMessage(`Failed to load commit files: ${message}`)
+        setHistoryDiffMessage(`Could not load files: ${message}`)
       }
     }
 

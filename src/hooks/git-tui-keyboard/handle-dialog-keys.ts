@@ -32,6 +32,7 @@ export function handleDialogKeys({
     closeMergeConflictDialog,
     openShortcutsDialog,
     focus,
+    mergeConflictFileCount,
     setFocus,
     submitHistoryAction,
     submitSyncAction,
@@ -129,6 +130,10 @@ export function handleDialogKeys({
   if (mergeConflictDialogOpen && flags.isEnter && focus === "merge-conflict-files") {
     key.preventDefault()
     key.stopPropagation()
+    if (mergeConflictFileCount === 0) {
+      setFocus("merge-conflict-actions")
+      return true
+    }
     void openSelectedMergeConflictFileInEditor()
     return true
   }

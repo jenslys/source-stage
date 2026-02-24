@@ -31,13 +31,13 @@ type UseBranchDialogControllerParams = {
 const CREATE_BRANCH_VALUE = "__create_branch__"
 const BRANCH_STRATEGY_OPTIONS: SelectOption[] = [
   {
-    name: "bring working changes",
-    description: "Carry local changes onto the new branch",
+    name: "keep my changes",
+    description: "switch branches and keep current file changes",
     value: "bring",
   },
   {
-    name: "leave changes on current branch",
-    description: "Stash changes and switch cleanly",
+    name: "switch clean",
+    description: "switch branches without current file changes",
     value: "leave",
   },
 ]
@@ -65,7 +65,7 @@ export function useBranchDialogController({
       { name: "+ create new branch...", description: "", value: CREATE_BRANCH_VALUE },
       ...branchNames.map((branch) => ({
         name: branch,
-        description: branch === snapshot?.branch ? "current branch" : "",
+        description: branch === snapshot?.branch ? "current" : "",
         value: branch,
       })),
     ],
@@ -77,27 +77,27 @@ export function useBranchDialogController({
     const isCurrentBranch = branch === snapshot?.branch
     const options: SelectOption[] = [
       {
-        name: "checkout branch",
-        description: isCurrentBranch ? "already on this branch" : "switch to this branch",
+        name: "checkout",
+        description: isCurrentBranch ? "you are already here" : "switch to this branch",
         value: "checkout",
       },
     ]
     if (!isCurrentBranch) {
       options.push({
-        name: "delete local branch",
-        description: "safe delete only (git branch -d)",
+        name: "delete local",
+        description: "remove this branch from this machine",
         value: "delete-local",
       })
     }
     options.push(
       {
-        name: "delete remote branch",
-        description: "delete origin/<branch>",
+        name: "delete remote",
+        description: "remove this branch from origin",
         value: "delete-remote",
       },
       {
-        name: "cancel",
-        description: "return to branch list",
+        name: "back",
+        description: "go back to branch list",
         value: "cancel",
       },
     )

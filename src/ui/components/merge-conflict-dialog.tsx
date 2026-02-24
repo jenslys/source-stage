@@ -57,8 +57,19 @@ export function MergeConflictDialog({
 
   return (
     <ViewFrame gap={1}>
-      <text fg={theme.colors.title}>resolve merge conflicts</text>
+      <text fg={theme.colors.title}>finish merge</text>
       <text fg={theme.colors.subtleText}>branch: {currentBranch}</text>
+      {conflictFileOptions.length > 0 ? (
+        <text fg={theme.colors.hintText}>
+          {conflictFileOptions.length} file{conflictFileOptions.length === 1 ? "" : "s"} still need
+          attention
+        </text>
+      ) : (
+        <text fg={theme.colors.hintText}>
+          All conflict files are fixed. You can finish the merge.
+        </text>
+      )}
+      <text fg={theme.colors.hintText}>enter on file opens editor or marks it done</text>
       {details ? (
         <text fg={theme.colors.hintText}>{fitLine(details, Math.max(contentWidth - 2, 1))}</text>
       ) : null}
@@ -67,7 +78,7 @@ export function MergeConflictDialog({
       <box style={{ flexDirection: "row", flexGrow: 1, gap: 1 }}>
         <box style={{ width: filesPaneWidth, flexDirection: "column" }}>
           <text fg={filesFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>
-            conflicts ({conflictFileOptions.length})
+            files ({conflictFileOptions.length})
           </text>
           <box
             style={{ flexDirection: "column", flexGrow: 1 }}
@@ -81,7 +92,7 @@ export function MergeConflictDialog({
           >
             {conflictFileOptions.length === 0 ? (
               <box style={{ paddingLeft: 1, paddingTop: 1 }}>
-                <text fg={theme.colors.subtleText}>No unresolved files.</text>
+                <text fg={theme.colors.subtleText}>No files left to fix.</text>
               </box>
             ) : (
               conflictFileOptions
@@ -128,7 +139,7 @@ export function MergeConflictDialog({
 
         <box style={{ width: actionsPaneWidth, flexDirection: "column" }}>
           <text fg={actionsFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>
-            actions
+            next step
           </text>
           <box
             style={{ flexDirection: "column", flexGrow: 1 }}

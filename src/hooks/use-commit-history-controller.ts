@@ -38,7 +38,7 @@ export function useCommitHistoryController({
   const [historyFilesLoading, setHistoryFilesLoading] = useState(false)
   const [historyDiffText, setHistoryDiffText] = useState("")
   const [historyDiffMessage, setHistoryDiffMessage] = useState<string | null>(
-    "Select a commit to view files",
+    "Pick a commit to see files",
   )
 
   const historyFilesCacheRef = useRef<Map<string, CommitFileChange[]>>(new Map())
@@ -111,10 +111,10 @@ export function useCommitHistoryController({
   const openHistoryDialog = useCallback(async (): Promise<void> => {
     if (!git) return
 
-    const succeeded = await runTask("LOAD HISTORY", async () => {
+    const succeeded = await runTask("load history", async () => {
       const loadedCommits = await git.listCommits()
       if (loadedCommits.length === 0) {
-        throw new Error("No commits found in this repository.")
+        throw new Error("No commits found.")
       }
 
       resetHistoryCaches()
@@ -126,7 +126,7 @@ export function useCommitHistoryController({
       setHistoryFileIndex(0)
       setHistoryFilesLoading(false)
       setHistoryDiffText("")
-      setHistoryDiffMessage("Select a commit to view files")
+      setHistoryDiffMessage("Pick a commit to see files")
       setHistoryMode("list")
       setHistoryDialogOpen(true)
       setFocus("history-commits")
@@ -151,7 +151,7 @@ export function useCommitHistoryController({
     setHistoryFileIndex(0)
     setHistoryFilesLoading(false)
     setHistoryDiffText("")
-    setHistoryDiffMessage("Select a commit to view files")
+    setHistoryDiffMessage("Pick a commit to see files")
     setFocus("files")
   }, [setFocus])
 
@@ -172,7 +172,7 @@ export function useCommitHistoryController({
     if (!git || !selectedCommit) return
 
     const action = resolveHistoryAction(actionIndex)
-    const label = `${action.toUpperCase()} ${selectedCommit.shortHash}`
+    const label = `${action} ${selectedCommit.shortHash}`
 
     const succeeded = await runTask(label, async () => {
       if (action === "revert") {
@@ -210,7 +210,7 @@ export function useCommitHistoryController({
       setHistoryFileIndex(0)
       setHistoryFilesLoading(true)
       setHistoryDiffText("")
-      setHistoryDiffMessage("Loading files...")
+      setHistoryDiffMessage("Loading files")
       setCommitIndex(normalized)
     },
     [commitIndex, commits.length],

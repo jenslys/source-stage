@@ -40,8 +40,8 @@ export function SyncDialog({
 
   return (
     <ViewFrame gap={1}>
-      <text fg={theme.colors.title}>push rejected</text>
-      <text fg={theme.colors.subtleText}>remote has new commits, choose how to sync first</text>
+      <text fg={theme.colors.title}>can't push yet</text>
+      <text fg={theme.colors.subtleText}>remote changed. pick what to do next</text>
       {details ? <text fg={theme.colors.hintText}>{fitLine(details, rowWidth)}</text> : null}
       <SectionDivider theme={theme} />
       <box

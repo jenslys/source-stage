@@ -91,7 +91,7 @@ export function CommitHistoryDialog({
   const fileRange = getVisibleRange(fileOptions.length, fileIndex, listVisibleRows)
   const leftPaneTitle = mode === "list" ? `commits (${commitOptions.length})` : "actions"
   const selectedPreviewTitle = mode === "action" ? selectedCommitTitle : selectedCommitPreviewTitle
-  const rightPaneTitle = selectedFilePath || selectedPreviewTitle || "no file selected"
+  const rightPaneTitle = selectedFilePath || selectedPreviewTitle || "no selection"
   const commitsFocused =
     mode === "action" ? focus === "history-actions" : focus === "history-commits"
   const filesFocused = mode === "list" && focus === "history-files"
@@ -99,7 +99,7 @@ export function CommitHistoryDialog({
   return (
     <ViewFrame gap={1}>
       <text fg={theme.colors.title}>commit history</text>
-      <text fg={theme.colors.subtleText}>current branch: {currentBranch}</text>
+      <text fg={theme.colors.subtleText}>branch: {currentBranch}</text>
       <SectionDivider theme={theme} />
 
       <box style={{ flexDirection: "row", flexGrow: 1, gap: 1 }}>

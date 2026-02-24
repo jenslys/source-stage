@@ -122,22 +122,22 @@ export function DiffWorkspace({
           {showLoadingState ? (
             <EmptyStatePanel
               title="loading repository state..."
-              subtitle="Fetching branch and working tree status."
+              subtitle="Checking branch and file changes."
               hint="r refresh  ? shortcuts"
               theme={theme}
             />
           ) : showCleanState ? (
             <EmptyStatePanel
               title="working tree clean"
-              subtitle="No unstaged or staged changes in this repository."
+              subtitle="No local changes right now."
               hint="r refresh  b branch  h history  ? shortcuts"
               theme={theme}
             />
           ) : showUnselectedState ? (
             <EmptyStatePanel
               title="select a file to preview diff"
-              subtitle="Use ↑ / ↓ to change selection in the changes list."
-              hint="space include/exclude  c commit  ? shortcuts"
+              subtitle="Use up/down to pick a file on the left."
+              hint="enter open file  space include/exclude  c commit"
               theme={theme}
             />
           ) : diffMessage ? (

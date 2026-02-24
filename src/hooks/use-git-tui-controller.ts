@@ -21,53 +21,23 @@ import {
 import { useGitTuiKeyboard } from "./use-git-tui-keyboard"
 
 type PushSyncAction = "merge-push" | "ff-push" | "cancel"
-type MergeConflictAction = "open-editor" | "mark-resolved" | "refresh" | "complete" | "abort"
+type MergeConflictAction = "complete" | "abort"
 
 const PUSH_SYNC_OPTIONS: SelectOption[] = [
   {
-    name: "pull (merge) and push",
-    description:
-      "recommended, preserves local commits and creates a merge commit when histories diverge",
+    name: "update from remote, then push",
+    description: "recommended. pulls new remote changes, then pushes",
     value: "merge-push",
   },
   {
-    name: "pull --ff-only and push",
-    description:
-      "only succeeds for fast-forward updates, temporarily stashes local changes when needed",
+    name: "push only if no merge is needed",
+    description: "only works when remote has no new commits",
     value: "ff-push",
   },
   {
     name: "cancel",
-    description: "leave branch unchanged",
+    description: "do nothing",
     value: "cancel",
-  },
-]
-
-const MERGE_CONFLICT_ACTION_OPTIONS: SelectOption[] = [
-  {
-    name: "open selected file in editor",
-    description: "launch configured editor for the selected conflict file",
-    value: "open-editor",
-  },
-  {
-    name: "mark selected file as resolved",
-    description: "stages selected file with git add",
-    value: "mark-resolved",
-  },
-  {
-    name: "refresh conflict list",
-    description: "re-scan unresolved conflict files",
-    value: "refresh",
-  },
-  {
-    name: "complete merge commit",
-    description: "creates merge commit when all conflicts are resolved",
-    value: "complete",
-  },
-  {
-    name: "abort merge",
-    description: "reverts merge and returns to pre-merge state",
-    value: "abort",
   },
 ]
 
@@ -87,7 +57,7 @@ export function useGitTuiController(
   const [summary, setSummary] = useState("")
   const [descriptionRenderKey, setDescriptionRenderKey] = useState(0)
   const [diffText, setDiffText] = useState("")
-  const [diffMessage, setDiffMessage] = useState<string | null>("No file selected")
+  const [diffMessage, setDiffMessage] = useState<string | null>("Pick a file to see changes")
   const [commitDialogOpen, setCommitDialogOpen] = useState(false)
   const [syncDialogOpen, setSyncDialogOpen] = useState(false)
   const [syncOptionIndex, setSyncOptionIndex] = useState(0)
@@ -112,6 +82,10 @@ export function useGitTuiController(
         value: path,
       })),
     [mergeConflictFilePaths],
+  )
+  const mergeConflictActionOptions = useMemo<SelectOption[]>(
+    () => resolveMergeConflictActionOptions(mergeConflictFilePaths.length),
+    [mergeConflictFilePaths.length],
   )
   const selectedMergeConflictPath = mergeConflictFilePaths[mergeConflictFileIndex] ?? null
 
@@ -152,13 +126,16 @@ export function useGitTuiController(
         clampSelectionIndex(current, Math.max(conflictPaths.length, 1)),
       )
       setMergeConflictActionIndex((current) =>
-        clampSelectionIndex(current, MERGE_CONFLICT_ACTION_OPTIONS.length),
+        clampSelectionIndex(
+          current,
+          resolveMergeConflictActionOptions(conflictPaths.length).length,
+        ),
       )
       setMergeConflictDetails(details ?? null)
       setMergeConflictStashRef(stashRef ?? null)
       setSyncDialogOpen(false)
       setMergeConflictDialogOpen(true)
-      setFocus("merge-conflict-files")
+      setFocus(conflictPaths.length > 0 ? "merge-conflict-files" : "merge-conflict-actions")
       return true
     },
     [git],
@@ -185,6 +162,15 @@ export function useGitTuiController(
       setMergeConflictFileIndex((current) =>
         clampSelectionIndex(current, Math.max(conflictPaths.length, 1)),
       )
+      setMergeConflictActionIndex((current) =>
+        clampSelectionIndex(
+          current,
+          resolveMergeConflictActionOptions(conflictPaths.length).length,
+        ),
+      )
+      if (conflictPaths.length === 0) {
+        setFocus("merge-conflict-actions")
+      }
       if (details !== undefined) {
         setMergeConflictDetails(details)
       }
@@ -215,7 +201,7 @@ export function useGitTuiController(
       }
 
       void (async () => {
-        const succeeded = await runTask("AI COMMIT", async () => {
+        const succeeded = await runTask("ai commit", async () => {
           const generatedSummary = await generateAiCommitSummary({
             git,
             files: snapshot?.files ?? [],
@@ -255,7 +241,7 @@ export function useGitTuiController(
       if (action === "push") {
         let pushErrorMessage: string | null = null
         const succeeded = await runTask(
-          "PUSH",
+          "push",
           async () => {
             await git.push()
             await refreshSnapshot()
@@ -268,7 +254,7 @@ export function useGitTuiController(
         )
 
         if (!succeeded && pushErrorMessage && isPushRejectedByRemoteUpdate(pushErrorMessage)) {
-          setSyncDetails(summarizePushError(pushErrorMessage))
+          setSyncDetails("Remote has new commits.")
           setSyncOptionIndex(0)
           setSyncDialogOpen(true)
           setFocus("sync-dialog-list")
@@ -279,11 +265,11 @@ export function useGitTuiController(
       if (action === "merge-main") {
         let mergeErrorMessage: string | null = null
         const succeeded = await runTask(
-          "MERGE MAIN",
+          "merge main",
           async () => {
             const target = await git.mergeRemoteMain()
             await refreshSnapshot()
-            setStatusMessage(`Merged ${target} into current branch`)
+            setStatusMessage(`Merged ${target}.`)
           },
           {
             onError: (error) => {
@@ -293,16 +279,16 @@ export function useGitTuiController(
         )
         if (!succeeded && mergeErrorMessage) {
           const opened = await activateMergeConflictDialog({
-            details: summarizePushError(mergeErrorMessage),
+            details: "Some local and remote changes overlap.",
           })
           if (opened) {
-            setStatusMessage("Merge has conflicts. Resolve files, then complete or abort merge.")
+            setStatusMessage("Merge needs attention. Fix files, then finish or cancel.")
           }
         }
         return
       }
 
-      await runTask(action.toUpperCase(), async () => {
+      await runTask(action, async () => {
         if (action === "refresh") {
           await refreshSnapshot()
           return
@@ -335,7 +321,7 @@ export function useGitTuiController(
     const description = descriptionRef.current?.plainText ?? ""
     const includedPaths = getIncludedPaths()
 
-    await runTask("COMMIT", async () => {
+    await runTask("commit", async () => {
       await git.commit(effectiveSummary, description, Array.from(excludedPaths), includedPaths)
       setSummary("")
       setDescriptionRenderKey((value) => value + 1)
@@ -381,7 +367,7 @@ export function useGitTuiController(
         const inProgress = await git.isMergeInProgress()
         if (!inProgress || cancelled) return
         await activateMergeConflictDialog({
-          details: "Merge in progress. Resolve conflicts to continue.",
+          details: "A merge is already in progress",
         })
       } catch (error) {
         if (cancelled) return
@@ -395,6 +381,29 @@ export function useGitTuiController(
       cancelled = true
     }
   }, [activateMergeConflictDialog, git, setStatusMessage])
+
+  useEffect(() => {
+    if (!git || !mergeConflictDialogOpen) return
+    let active = true
+
+    const syncConflicts = async () => {
+      if (!active) return
+      try {
+        await refreshMergeConflictState()
+      } catch (error) {
+        if (!active) return
+        const message = error instanceof Error ? error.message : String(error)
+        setStatusMessage(`Error: ${message}`)
+      }
+    }
+
+    void syncConflicts()
+    const timer = setInterval(() => void syncConflicts(), 1200)
+    return () => {
+      active = false
+      clearInterval(timer)
+    }
+  }, [git, mergeConflictDialogOpen, refreshMergeConflictState, setStatusMessage])
 
   const toggleSelectedFileInCommit = useCallback(() => {
     if (!selectedFilePath) return
@@ -478,7 +487,7 @@ export function useGitTuiController(
       {
         onError: (error) => {
           syncErrorMessage = error.message
-          setSyncDetails(summarizePushError(error.message))
+          setSyncDetails(resolveSyncErrorDetails(error.message))
         },
       },
     )
@@ -490,11 +499,11 @@ export function useGitTuiController(
 
     if (selectedAction === "merge-push" && syncErrorMessage) {
       const opened = await activateMergeConflictDialog({
-        details: summarizePushError(syncErrorMessage),
+        details: "We found overlapping changes from local and remote.",
         stashRef: extractStashRef(syncErrorMessage),
       })
       if (opened) {
-        setStatusMessage("Merge has conflicts. Resolve files, then complete or abort merge.")
+        setStatusMessage("Merge needs attention. Fix files, then finish or cancel.")
       }
     }
   }, [
@@ -525,11 +534,14 @@ export function useGitTuiController(
     [mergeConflictFilePaths.length],
   )
 
-  const setMergeConflictActionSelection = useCallback((index: number) => {
-    const total = MERGE_CONFLICT_ACTION_OPTIONS.length
-    if (total <= 0) return
-    setMergeConflictActionIndex(clampSelectionIndex(index, total))
-  }, [])
+  const setMergeConflictActionSelection = useCallback(
+    (index: number) => {
+      const total = mergeConflictActionOptions.length
+      if (total <= 0) return
+      setMergeConflictActionIndex(clampSelectionIndex(index, total))
+    },
+    [mergeConflictActionOptions.length],
+  )
 
   const moveMergeConflictFileUp = useCallback(() => {
     setMergeConflictFileIndex((current) =>
@@ -545,15 +557,15 @@ export function useGitTuiController(
 
   const moveMergeConflictActionUp = useCallback(() => {
     setMergeConflictActionIndex((current) =>
-      getPreviousIndex(current, MERGE_CONFLICT_ACTION_OPTIONS.length),
+      getPreviousIndex(current, mergeConflictActionOptions.length),
     )
-  }, [])
+  }, [mergeConflictActionOptions.length])
 
   const moveMergeConflictActionDown = useCallback(() => {
     setMergeConflictActionIndex((current) =>
-      getNextIndex(current, MERGE_CONFLICT_ACTION_OPTIONS.length),
+      getNextIndex(current, mergeConflictActionOptions.length),
     )
-  }, [])
+  }, [mergeConflictActionOptions.length])
 
   const openSelectedMergeConflictFileInEditor = useCallback(async (): Promise<void> => {
     if (!git) return
@@ -562,13 +574,34 @@ export function useGitTuiController(
       return
     }
 
-    const succeeded = await runTask("OPEN CONFLICT FILE", async () => {
+    const hasMarkers = await git.workingTreeFileHasConflictMarkers(selectedMergeConflictPath)
+    if (!hasMarkers) {
+      const succeeded = await runTask("mark resolved", async () => {
+        await git.markConflictResolved(selectedMergeConflictPath)
+        await refreshMergeConflictState(null)
+        await refreshSnapshot()
+      })
+      if (succeeded) {
+        setStatusMessage(`Resolved ${selectedMergeConflictPath}`)
+      }
+      return
+    }
+
+    const opened = await runTask("open conflict file", async () => {
       await git.openInEditor(selectedMergeConflictPath, config.editor)
     })
-    if (succeeded) {
+    if (opened) {
       setStatusMessage(`Opened ${selectedMergeConflictPath}`)
     }
-  }, [config.editor, git, runTask, selectedMergeConflictPath, setStatusMessage])
+  }, [
+    config.editor,
+    git,
+    refreshMergeConflictState,
+    refreshSnapshot,
+    runTask,
+    selectedMergeConflictPath,
+    setStatusMessage,
+  ])
 
   const restorePendingMergeStash = useCallback(async (): Promise<string | null> => {
     if (!git || !mergeConflictStashRef) return null
@@ -584,43 +617,12 @@ export function useGitTuiController(
 
   const submitMergeConflictAction = useCallback(async (): Promise<void> => {
     if (!git) return
-    const option = MERGE_CONFLICT_ACTION_OPTIONS[mergeConflictActionIndex]
+    const option = mergeConflictActionOptions[mergeConflictActionIndex]
     const selectedAction: MergeConflictAction =
-      option?.value === "open-editor" ||
-      option?.value === "mark-resolved" ||
-      option?.value === "refresh" ||
-      option?.value === "complete" ||
-      option?.value === "abort"
-        ? option.value
-        : "refresh"
-
-    if (selectedAction === "open-editor") {
-      await openSelectedMergeConflictFileInEditor()
-      return
-    }
-
-    if (selectedAction === "mark-resolved") {
-      if (!selectedMergeConflictPath) {
-        setStatusMessage("No conflict file selected.")
-        return
-      }
-      const succeeded = await runTask("MARK RESOLVED", async () => {
-        await git.markConflictResolved(selectedMergeConflictPath)
-      })
-      if (succeeded) {
-        await refreshMergeConflictState(null)
-        await refreshSnapshot()
-      }
-      return
-    }
-
-    if (selectedAction === "refresh") {
-      await refreshMergeConflictState(null)
-      return
-    }
+      option?.value === "complete" || option?.value === "abort" ? option.value : "abort"
 
     if (selectedAction === "complete") {
-      const succeeded = await runTask("COMPLETE MERGE", async () => {
+      const succeeded = await runTask("finish merge", async () => {
         await git.completeMergeCommit()
         await refreshSnapshot()
       })
@@ -628,9 +630,9 @@ export function useGitTuiController(
         const stashRestoreError = await restorePendingMergeStash()
         closeMergeConflictDialog()
         if (stashRestoreError) {
-          setStatusMessage(`Merge commit created. ${stashRestoreError}`)
+          setStatusMessage(`Merge finished. ${stashRestoreError}`)
         } else {
-          setStatusMessage("Merge commit created.")
+          setStatusMessage("Merge finished.")
         }
       } else {
         await refreshMergeConflictState(null)
@@ -638,7 +640,7 @@ export function useGitTuiController(
       return
     }
 
-    const succeeded = await runTask("ABORT MERGE", async () => {
+    const succeeded = await runTask("cancel merge", async () => {
       await git.abortMerge()
       await refreshSnapshot()
     })
@@ -646,9 +648,9 @@ export function useGitTuiController(
       const stashRestoreError = await restorePendingMergeStash()
       closeMergeConflictDialog()
       if (stashRestoreError) {
-        setStatusMessage(`Merge aborted. ${stashRestoreError}`)
+        setStatusMessage(`Merge canceled. ${stashRestoreError}`)
       } else {
-        setStatusMessage("Merge aborted.")
+        setStatusMessage("Merge canceled.")
       }
     } else {
       await refreshMergeConflictState(null)
@@ -656,8 +658,8 @@ export function useGitTuiController(
   }, [
     closeMergeConflictDialog,
     git,
+    mergeConflictActionOptions,
     mergeConflictActionIndex,
-    openSelectedMergeConflictFileInEditor,
     refreshMergeConflictState,
     refreshSnapshot,
     restorePendingMergeStash,
@@ -668,11 +670,11 @@ export function useGitTuiController(
   const openSelectedFileInEditor = useCallback(async (): Promise<void> => {
     if (!git) return
     if (!selectedFilePath) {
-      setStatusMessage("No file selected.")
+      setStatusMessage("Pick a file first.")
       return
     }
 
-    const succeeded = await runTask("OPEN FILE", async () => {
+    const succeeded = await runTask("open file", async () => {
       await git.openInEditor(selectedFilePath, config.editor)
     })
     if (succeeded) {
@@ -694,6 +696,7 @@ export function useGitTuiController(
     setFocus,
     focus,
     fileCount: snapshot?.files.length ?? 0,
+    mergeConflictFileCount: mergeConflictFileOptions.length,
     moveToPreviousFile: moveToPreviousMainFile,
     moveToNextFile: moveToNextMainFile,
     openBranchDialog: branchDialog.openBranchDialog,
@@ -775,7 +778,7 @@ export function useGitTuiController(
     mergeConflictDetails,
     mergeConflictFileOptions,
     mergeConflictFileIndex,
-    mergeConflictActionOptions: MERGE_CONFLICT_ACTION_OPTIONS,
+    mergeConflictActionOptions,
     mergeConflictActionIndex,
     closeMergeConflictDialog,
     setMergeConflictFileSelection,
@@ -806,12 +809,47 @@ function isPushRejectedByRemoteUpdate(message: string): boolean {
   )
 }
 
-function summarizePushError(message: string): string {
-  return message.replace(/\s+/g, " ").trim()
+function resolveSyncErrorDetails(message: string): string {
+  const normalized = message.toLowerCase()
+  if (
+    normalized.includes("non-fast-forward") ||
+    normalized.includes("fetch first") ||
+    normalized.includes("failed to push some refs") ||
+    normalized.includes("[rejected]")
+  ) {
+    return "Remote has new commits."
+  }
+
+  return "Could not sync yet."
 }
 
 function extractStashRef(message: string): string | null {
   const match = message.match(/\bstashed as (\S+);/i)
   const stashRef = match?.[1]?.trim()
   return stashRef && stashRef.length > 0 ? stashRef : null
+}
+
+function resolveMergeConflictActionOptions(unresolvedConflicts: number): SelectOption[] {
+  if (unresolvedConflicts > 0) {
+    return [
+      {
+        name: "cancel merge",
+        description: "go back to how things were before this merge",
+        value: "abort",
+      },
+    ]
+  }
+
+  return [
+    {
+      name: "finish merge",
+      description: "save this merge and continue",
+      value: "complete",
+    },
+    {
+      name: "cancel merge",
+      description: "go back to how things were before this merge",
+      value: "abort",
+    },
+  ]
 }
