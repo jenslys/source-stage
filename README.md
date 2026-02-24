@@ -12,7 +12,7 @@ What it does:
 - Fast branch switching and commit history view
 - Optional AI-generated conventional commits
 
-<video src="https://github.com/user-attachments/assets/5f61e323-bb5e-4b11-9352-182d1a884feb" controls></video>
+<video src="https://github.com/user-attachments/assets/45b376bb-09a1-4666-929a-40017ec7748d" controls></video>
 
 ## Get Started
 
