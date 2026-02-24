@@ -55,7 +55,8 @@ function buildUpdateCommand(packageManager: PackageManager): string[] {
 
   switch (packageManager) {
     case "bun":
-      return ["bun", "add", "-g", packageSpecifier]
+      // `bun update -g` performs an actual upgrade; `bun add -g` can keep the current resolved version.
+      return ["bun", "update", "-g", PACKAGE_NAME]
     case "pnpm":
       return ["pnpm", "add", "-g", packageSpecifier]
     case "yarn":

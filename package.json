@@ -38,7 +38,7 @@
     "@ai-sdk/cerebras": "^2.0.34",
     "@opentui/core": "^0.1.81",
     "@opentui/react": "^0.1.81",
-    "ai": "^6.0.97",
+    "ai": "^6.0.98",
     "gpt-tokenizer": "^3.4.0",
     "react": "^19.2.4"
   },
@@ -49,6 +49,6 @@
     "oxlint": "1.50.0"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   }
 }
