@@ -55,6 +55,54 @@ bun run eval:ai -- --commit 56d030f072853619483abaf79c57e9104a143d9d
 bun run eval:ai -- --commit 56d030f072853619483abaf79c57e9104a143d9d --verbose
 ```
 
+<details>
+<summary>How AI Committer Works (Technical)</summary>
+
+1. Model and output contract
+   Stage asks the AI for a commit title in a strict structure: `{ type, optional scope, description }`.  
+   Then it converts that into a normal Conventional Commit line like `refactor(ui): simplify sync dialog`.
+
+2. Context construction (single budget)
+   Stage builds one text context for the AI that includes:
+
+- which files changed
+- what kind of files they are (docs/tests/config/code)
+- how much changed in each file (`+added` and `-removed` lines)
+- key snippets from diffs
+- which folders/modules changed the most  
+  `ai.max_input_tokens` is the only user setting for context size.
+
+`line deltas` = lines added and removed. Example: `+120 -40`.
+
+3. Diff handling
+   Before sending to AI, Stage compresses diffs to the important parts.  
+   If a file diff is huge or unreadable, Stage skips that file’s diff body instead of failing.  
+   Stage also spreads context space across files so one giant file does not drown out everything else.
+
+4. Candidate generation and local reranking
+   Stage asks for several candidate titles (not just one).  
+   Then Stage scores them locally (without another AI model) based on:
+
+- whether the title matches the main changed terms
+- whether the commit type looks right (`feat`/`fix`/`refactor`)
+- simple wording quality checks  
+  Titles that miss the biggest change themes are rejected.
+
+5. Final validation
+   Final title must match Conventional Commit format and max length.  
+   If all candidates are weak, Stage does one more retry with a focused hint.
+
+6. Eval mode (`bun run eval:ai -- --verbose`)
+   `eval:ai` replays a commit in a temp worktree and shows what title the AI would generate.  
+   `--verbose` also shows diagnostics like:
+
+- token usage (`used vs max`)
+- whether context was trimmed
+- how many big files were skipped
+- top changed folder groups
+
+</details>
+
 ## Configuration
 
 Config file path:
