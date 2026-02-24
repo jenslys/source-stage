@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 import { existsSync } from "node:fs"
 import { join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
+
+const PACKAGE_NAME = "stage-tui"
+type PackageManager = "bun" | "npm" | "pnpm" | "yarn"
+type UpdateBehavior = "background" | "foreground"
 
 function resolveDevEntry(): string {
   const envPath = process.env.STAGE_DEV_PATH
@@ -23,6 +28,109 @@ function resolveDevEntry(): string {
   )
 }
 
+function detectPackageManager(scriptPath: string): PackageManager | null {
+  const normalizedPath = scriptPath.replaceAll("\\", "/")
+
+  if (normalizedPath.includes("/.bun/")) {
+    return "bun"
+  }
+
+  if (normalizedPath.includes("/.pnpm/") || normalizedPath.includes("/pnpm/global/")) {
+    return "pnpm"
+  }
+
+  if (normalizedPath.includes("/.config/yarn/") || normalizedPath.includes("/yarn/")) {
+    return "yarn"
+  }
+
+  if (normalizedPath.includes("/node_modules/")) {
+    return "npm"
+  }
+
+  return null
+}
+
+function buildUpdateCommand(packageManager: PackageManager): string[] {
+  const packageSpecifier = `${PACKAGE_NAME}@latest`
+
+  switch (packageManager) {
+    case "bun":
+      return ["bun", "add", "-g", packageSpecifier]
+    case "pnpm":
+      return ["pnpm", "add", "-g", packageSpecifier]
+    case "yarn":
+      return ["yarn", "global", "add", packageSpecifier]
+    case "npm":
+      return ["npm", "install", "-g", packageSpecifier]
+  }
+}
+
+async function runUpdateModeWithOptions(options: { dryRun: boolean }): Promise<void> {
+  const scriptPath = fileURLToPath(import.meta.url)
+  const packageManager = detectPackageManager(scriptPath)
+  if (options.dryRun) {
+    if (!packageManager) {
+      throw new Error(`Unable to detect how ${PACKAGE_NAME} was installed from ${scriptPath}.`)
+    }
+    const command = buildUpdateCommand(packageManager)
+    console.error(`Detected package manager: ${packageManager}`)
+    console.error(`Would run: ${command.join(" ")}`)
+    return
+  }
+
+  return runUpdateForManager(packageManager, scriptPath, {
+    strict: true,
+    behavior: "foreground",
+  })
+}
+
+function runAutoUpdateOnLaunch(): void {
+  const scriptPath = fileURLToPath(import.meta.url)
+  const packageManager = detectPackageManager(scriptPath)
+  void runUpdateForManager(packageManager, scriptPath, {
+    strict: false,
+    behavior: "background",
+  })
+}
+
+async function runUpdateForManager(
+  packageManager: PackageManager | null,
+  scriptPath: string,
+  options: {
+    strict: boolean
+    behavior: UpdateBehavior
+  },
+): Promise<void> {
+  if (!packageManager) {
+    if (!options.strict) {
+      // Launch path can be a local checkout (`bun run bin/stage` / `stage --dev`) with no package-manager signature.
+      // In that case auto-update cannot be resolved safely and must be skipped.
+      return
+    }
+    throw new Error(`Unable to detect how ${PACKAGE_NAME} was installed from ${scriptPath}.`)
+  }
+
+  const command = buildUpdateCommand(packageManager)
+  if (options.behavior === "background") {
+    Bun.spawn(command, {
+      stdin: "ignore",
+      stdout: "ignore",
+      stderr: "ignore",
+    })
+    return
+  }
+
+  console.error(`Updating ${PACKAGE_NAME} via ${packageManager}...`)
+  const child = Bun.spawn(command, { stdin: "inherit", stdout: "inherit", stderr: "inherit" })
+
+  const exitCode = await child.exited
+  if (exitCode !== 0) {
+    throw new Error(
+      `Failed to update ${PACKAGE_NAME} via ${packageManager} (exit code ${exitCode}).`,
+    )
+  }
+}
+
 async function runDevMode(args: string[]) {
   const entry = resolveDevEntry()
   const child = Bun.spawn(["bun", "run", entry, ...args], {
@@ -36,6 +144,21 @@ async function runDevMode(args: string[]) {
 
 try {
   const args = process.argv.slice(2)
+  const updateModeIndex = args.findIndex((arg) => arg === "update" || arg === "--update")
+  if (updateModeIndex >= 0) {
+    const isDryRun = args.includes("--dry-run")
+    const isValidUsage =
+      updateModeIndex === 0 &&
+      (args.length === 1 || (args.length === 2 && isDryRun && args[1] === "--dry-run"))
+    if (!isValidUsage) {
+      throw new Error('Usage: stage update [--dry-run]')
+    }
+    await runUpdateModeWithOptions({ dryRun: isDryRun })
+    process.exit(0)
+  }
+
+  runAutoUpdateOnLaunch()
+
   const devModeIndex = args.indexOf("--dev")
 
   if (devModeIndex >= 0) {

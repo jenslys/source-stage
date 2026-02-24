@@ -40,8 +40,10 @@ stage --dev
 ## Use
 
 ```bash
-stage            # use installed npm package
+stage            # launches immediately and updates in background for next run
 stage --dev      # use local checkout at STAGE_DEV_PATH
+stage update     # update global install using the same package manager used to install stage
+stage update --dry-run   # show detected package manager + update command only
 ```
 
 AI commit evals:
