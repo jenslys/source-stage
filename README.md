@@ -80,8 +80,8 @@ bun run eval:ai -- --commit 56d030f072853619483abaf79c57e9104a143d9d --verbose
    Stage also spreads context space across files so one giant file does not drown out everything else.
 
 4. Candidate generation and local reranking
-   Stage asks for several candidate titles (not just one).  
-   Then Stage scores them locally (without another AI model) based on:
+Stage starts with one fast candidate title, then retries only if needed.  
+Stage scores candidates locally (without another AI model) based on:
 
 - whether the title matches the main changed terms
 - whether the commit type looks right (`feat`/`fix`/`refactor`)

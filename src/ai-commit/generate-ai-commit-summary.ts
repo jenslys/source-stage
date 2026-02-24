@@ -53,18 +53,35 @@ export async function generateAiCommitSummary({
   })
   const model = cerebras(aiConfig.model)
 
-  const candidates: string[] = []
-  for (const config of CANDIDATE_ATTEMPTS) {
-    const candidate = await generateCommitDraft(
-      model,
+  const firstCandidate = await generateCommitDraft(model, context, aiConfig.reasoningEffort, false)
+  if (firstCandidate) {
+    const firstEvaluation = selectBestCommitSubject({
+      candidates: [firstCandidate],
       context,
-      aiConfig.reasoningEffort,
-      config.retry,
-      config.retryReason,
-    )
-    if (candidate) {
-      candidates.push(candidate)
+      selectedPaths: selected,
+    })
+    if (firstEvaluation && !firstEvaluation.hardRejected && firstEvaluation.score >= FAST_ACCEPT_SCORE) {
+      return firstEvaluation.subject
     }
+  }
+
+  const candidates: string[] = firstCandidate ? [firstCandidate] : []
+  const retryReason = firstCandidate
+    ? buildDominantTokenRetryHint({
+        context,
+        selectedPaths: selected,
+        subject: firstCandidate,
+      }) ?? DEFAULT_RETRY_REASON
+    : DEFAULT_RETRY_REASON
+  const secondCandidate = await generateCommitDraft(
+    model,
+    context,
+    aiConfig.reasoningEffort,
+    true,
+    retryReason,
+  )
+  if (secondCandidate) {
+    candidates.push(secondCandidate)
   }
 
   const best = selectBestCommitSubject({
@@ -72,36 +89,7 @@ export async function generateAiCommitSummary({
     context,
     selectedPaths: selected,
   })
-  if (best && !best.hardRejected) {
-    return best.subject
-  }
-
   if (best) {
-    const retryReason = buildDominantTokenRetryHint({
-      context,
-      selectedPaths: selected,
-      subject: best.subject,
-    })
-    if (retryReason) {
-      const targetedRetry = await generateCommitDraft(
-        model,
-        context,
-        aiConfig.reasoningEffort,
-        true,
-        retryReason,
-      )
-      if (targetedRetry) {
-        const reselected = selectBestCommitSubject({
-          candidates: [...candidates, targetedRetry],
-          context,
-          selectedPaths: selected,
-        })
-        if (reselected) {
-          return reselected.subject
-        }
-      }
-    }
-
     return best.subject
   }
 
@@ -110,12 +98,5 @@ export async function generateAiCommitSummary({
   )
 }
 
-const CANDIDATE_ATTEMPTS: Array<{
-  retry: boolean
-  retryReason?: string
-}> = [
-  { retry: false },
-  { retry: true, retryReason: "cover dominant changed themes across modules when applicable" },
-  { retry: true, retryReason: "avoid narrowing the summary to a single subsystem unless clearly dominant" },
-  { retry: true, retryReason: "include major configuration or policy terms when they are prominent" },
-]
+const FAST_ACCEPT_SCORE = 40
+const DEFAULT_RETRY_REASON = "cover dominant changed themes across modules when applicable"
