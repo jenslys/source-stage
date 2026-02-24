@@ -1,4 +1,5 @@
 import type { UiTheme } from "../theme"
+import { SectionDivider } from "./section-divider"
 import { getVisibleRange } from "../list-range"
 import type { FileRow, FocusTarget } from "../types"
 import { fitPathPartsForWidth } from "../utils"
@@ -52,6 +53,7 @@ export function DiffWorkspace({
     <box style={{ flexDirection: "row", flexGrow: 1, gap: 1, paddingLeft: 1, paddingRight: 1 }}>
       <box style={{ width: changesPaneWidth, flexDirection: "column" }}>
         <text fg={theme.colors.mutedText}>changes ({fileRows.length})</text>
+        <SectionDivider theme={theme} />
         <box
           style={{ flexDirection: "column", flexGrow: 1 }}
           onMouseScroll={(event) => {
@@ -113,6 +115,7 @@ export function DiffWorkspace({
       </box>
       <box style={{ flexGrow: 1, flexDirection: "column" }}>
         <text fg={theme.colors.mutedText}>{paneLabel}</text>
+        <SectionDivider theme={theme} />
         {showLoadingState ? (
           <EmptyStatePanel
             title="loading repository state..."

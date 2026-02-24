@@ -1,11 +1,11 @@
 import type { SelectOption } from "@opentui/core"
 
 import { getPaneWidths, resolveRowBackground, resolveRowTextColor } from "./commit-history/layout"
+import { SectionDivider } from "./section-divider"
 import { getVisibleRange } from "../list-range"
-import type { FocusTarget } from "../types"
+import type { CommitHistoryMode, FocusTarget } from "../types"
 import { fitLine, fitPathForWidth } from "../utils"
 import type { UiTheme } from "../theme"
-import type { CommitHistoryMode } from "../types"
 
 type CommitHistoryDialogProps = {
   open: boolean
@@ -96,6 +96,7 @@ export function CommitHistoryDialog({
             ? "tab: commits/files | enter: choose action | esc: close"
             : "up/down choose action | enter confirm | esc back"}
         </text>
+        <SectionDivider theme={theme} />
 
         <box style={{ flexDirection: "row", flexGrow: 1, gap: 1 }}>
           <box style={{ width: commitsPaneWidth, flexDirection: "column" }}>

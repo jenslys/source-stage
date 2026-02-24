@@ -1,6 +1,7 @@
 import type { InputRenderable, SelectOption } from "@opentui/core"
 import type { RefObject } from "react"
 
+import { SectionDivider } from "./section-divider"
 import type { UiTheme } from "../theme"
 import type { BranchDialogMode, FocusTarget } from "../types"
 import { getVisibleRange } from "../list-range"
@@ -80,6 +81,7 @@ export function BranchDialog({
       <box style={{ width: "100%", maxWidth: 88, gap: 1, flexDirection: "column", flexGrow: 1 }}>
         <text fg={theme.colors.title}>change branch</text>
         <text fg={theme.colors.subtleText}>current: {currentBranch}</text>
+        <SectionDivider theme={theme} />
         {mode === "select" ? (
           <>
             <text fg={theme.colors.subtleText}>
