@@ -8,6 +8,7 @@ type BranchDialogProps = {
   open: boolean
   mode: "select" | "create" | "confirm"
   focus: FocusTarget
+  terminalWidth: number
   terminalHeight: number
   currentBranch: string
   branchOptions: SelectOption[]
@@ -17,6 +18,10 @@ type BranchDialogProps = {
   branchName: string
   branchNameRef: RefObject<InputRenderable | null>
   onBranchNameInput: (value: string) => void
+  onBranchClick: (index: number) => void
+  onBranchStrategyClick: (index: number) => void
+  onBranchScroll: (direction: "up" | "down") => void
+  onBranchStrategyScroll: (direction: "up" | "down") => void
   theme: UiTheme
 }
 
@@ -24,6 +29,7 @@ export function BranchDialog({
   open,
   mode,
   focus,
+  terminalWidth,
   terminalHeight,
   currentBranch,
   branchOptions,
@@ -33,12 +39,22 @@ export function BranchDialog({
   branchName,
   branchNameRef,
   onBranchNameInput,
+  onBranchClick,
+  onBranchStrategyClick,
+  onBranchScroll,
+  onBranchStrategyScroll,
   theme,
 }: BranchDialogProps) {
   if (!open) return null
-  const visibleOptionRows = Math.max(4, terminalHeight - 16)
-  const branchRange = getVisibleRange(branchOptions.length, branchIndex, visibleOptionRows)
+  const visibleOptionRows = Math.max(1, terminalHeight - 16)
+  const createOption = branchOptions[0]
+  const checkoutOptions = branchOptions.slice(1)
+  const checkoutSelectedIndex = Math.max(branchIndex - 1, 0)
+  const visibleCheckoutRows = Math.max(1, visibleOptionRows - 2)
+  const checkoutRange = getVisibleRange(checkoutOptions.length, checkoutSelectedIndex, visibleCheckoutRows)
   const strategyRange = getVisibleRange(branchStrategyOptions.length, branchStrategyIndex, visibleOptionRows)
+  const rowWidth = Math.max(Math.min(terminalWidth - 18, 80), 12)
+  const labelWidth = Math.max(rowWidth - 2, 1)
 
   return (
     <box
@@ -57,19 +73,66 @@ export function BranchDialog({
         {mode === "select" ? (
           <>
             <text fg={theme.colors.subtleText}>enter to checkout | select & enter to create branch | esc to close</text>
-            <box style={{ width: "100%", flexDirection: "column" }}>
-              {branchOptions.slice(branchRange.start, branchRange.end).map((option, visibleIndex) => {
-                const absoluteIndex = branchRange.start + visibleIndex
+            <box
+              style={{ width: "100%", flexDirection: "column" }}
+              onMouseScroll={(event) => {
+                const direction = event.scroll?.direction
+                if (direction !== "up" && direction !== "down") return
+                event.preventDefault()
+                event.stopPropagation()
+                onBranchScroll(direction)
+              }}
+            >
+              {createOption ? (
+                <box
+                  key={`create-${String(createOption.value ?? createOption.name ?? "")}`}
+                  style={{ width: "100%", height: 1, flexDirection: "row", ...(branchIndex === 0 ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    onBranchClick(0)
+                  }}
+                >
+                  <text
+                    style={{ width: "100%" }}
+                    fg={branchIndex === 0 ? theme.colors.selectSelectedText : theme.colors.text}
+                  >
+                    {branchIndex === 0 ? "▶ " : "  "}
+                    {fitLine(createOption.name ?? String(createOption.value ?? ""), labelWidth)}
+                  </text>
+                </box>
+              ) : null}
+              {checkoutOptions.length > 0 ? (
+                <box style={{ width: "100%", height: 1, flexDirection: "row" }}>
+                  <text style={{ width: "100%" }} fg={theme.colors.subtleText}>
+                    {fitLine("checkout branches", labelWidth)}
+                  </text>
+                </box>
+              ) : null}
+              {checkoutOptions.slice(checkoutRange.start, checkoutRange.end).map((option, visibleIndex) => {
+                const absoluteIndex = checkoutRange.start + visibleIndex + 1
                 const selected = absoluteIndex === branchIndex
                 const optionName = option.name ?? String(option.value ?? "")
-                const optionDescription = option.description ?? ""
+                const isCurrentBranch = (option.description ?? "").length > 0
+                const marker = isCurrentBranch ? "● " : "  "
+                const label = `${marker}${optionName}`
                 return (
-                  <box key={`${optionName}-${absoluteIndex}`} style={{ flexDirection: "column", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}>
-                    <text fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
+                  <box
+                    key={`${optionName}-${absoluteIndex}`}
+                    style={{ width: "100%", height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onBranchClick(absoluteIndex)
+                    }}
+                  >
+                    <text
+                      style={{ width: "100%" }}
+                      fg={selected ? theme.colors.selectSelectedText : theme.colors.text}
+                    >
                       {selected ? "▶ " : "  "}
-                      {optionName}
+                      {fitLine(label, labelWidth)}
                     </text>
-                    {optionDescription ? <text fg={theme.colors.subtleText}>  {optionDescription}</text> : null}
                   </box>
                 )
               })}
@@ -78,19 +141,36 @@ export function BranchDialog({
         ) : mode === "confirm" ? (
           <>
             <text fg={theme.colors.subtleText}>what should happen to your working changes? | enter to continue | esc to go back</text>
-            <box style={{ width: "100%", flexDirection: "column" }}>
+            <box
+              style={{ width: "100%", flexDirection: "column" }}
+              onMouseScroll={(event) => {
+                const direction = event.scroll?.direction
+                if (direction !== "up" && direction !== "down") return
+                event.preventDefault()
+                event.stopPropagation()
+                onBranchStrategyScroll(direction)
+              }}
+            >
               {branchStrategyOptions.slice(strategyRange.start, strategyRange.end).map((option, visibleIndex) => {
                 const absoluteIndex = strategyRange.start + visibleIndex
                 const selected = absoluteIndex === branchStrategyIndex
                 const optionName = option.name ?? String(option.value ?? "")
                 const optionDescription = option.description ?? ""
+                const label = optionDescription ? `${optionName} - ${optionDescription}` : optionName
                 return (
-                  <box key={`${optionName}-${absoluteIndex}`} style={{ flexDirection: "column", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}>
-                    <text fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
+                  <box
+                    key={`${optionName}-${absoluteIndex}`}
+                    style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onBranchStrategyClick(absoluteIndex)
+                    }}
+                  >
+                    <text style={{ width: "100%" }} fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
                       {selected ? "▶ " : "  "}
-                      {optionName}
+                      {fitLine(label, labelWidth)}
                     </text>
-                    {optionDescription ? <text fg={theme.colors.subtleText}>  {optionDescription}</text> : null}
                   </box>
                 )
               })}
@@ -122,4 +202,11 @@ function getVisibleRange(total: number, selectedIndex: number, windowSize: numbe
   const centeredStart = Math.max(selectedIndex - Math.floor(safeSize / 2), 0)
   const start = Math.min(centeredStart, maxStart)
   return { start, end: Math.min(start + safeSize, total) }
+}
+
+function fitLine(text: string, width: number): string {
+  if (width <= 0) return ""
+  if (text.length <= width) return text.padEnd(width, " ")
+  if (width <= 3) return text.slice(0, width)
+  return `${text.slice(0, width - 3)}...`
 }

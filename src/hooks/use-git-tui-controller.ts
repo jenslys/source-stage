@@ -226,6 +226,24 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     })
   }, [selectedFilePath])
 
+  const focusFiles = useCallback(() => {
+    setFocus("files")
+  }, [])
+
+  const setMainFileSelection = useCallback((index: number) => {
+    const total = snapshot?.files.length ?? 0
+    if (total <= 0) return
+    setFileIndex(clampSelectionIndex(index, total))
+  }, [snapshot?.files.length])
+
+  const moveToPreviousMainFile = useCallback(() => {
+    setFileIndex((current) => getPreviousIndex(current, snapshot?.files.length ?? 0))
+  }, [snapshot?.files.length])
+
+  const moveToNextMainFile = useCallback(() => {
+    setFileIndex((current) => getNextIndex(current, snapshot?.files.length ?? 0))
+  }, [snapshot?.files.length])
+
   useGitTuiKeyboard({
     renderer,
     commitDialogOpen,
@@ -238,8 +256,8 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     setFocus,
     focus,
     fileCount: snapshot?.files.length ?? 0,
-    moveToPreviousFile: () => setFileIndex((current) => getPreviousIndex(current, snapshot?.files.length ?? 0)),
-    moveToNextFile: () => setFileIndex((current) => getNextIndex(current, snapshot?.files.length ?? 0)),
+    moveToPreviousFile: moveToPreviousMainFile,
+    moveToNextFile: moveToNextMainFile,
     openBranchDialog: branchDialog.openBranchDialog,
     closeBranchDialog: branchDialog.closeBranchDialog,
     showBranchDialogList: branchDialog.showBranchDialogList,
@@ -256,6 +274,8 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     submitHistoryAction: commitHistory.submitHistoryAction,
     moveCommitSelectionUp: commitHistory.moveCommitSelectionUp,
     moveCommitSelectionDown: commitHistory.moveCommitSelectionDown,
+    moveHistoryFileSelectionUp: commitHistory.moveHistoryFileSelectionUp,
+    moveHistoryFileSelectionDown: commitHistory.moveHistoryFileSelectionDown,
     moveHistoryActionUp: commitHistory.moveHistoryActionUp,
     moveHistoryActionDown: commitHistory.moveHistoryActionDown,
     commitChanges,
@@ -291,6 +311,10 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     ...commitHistory,
     fileRows,
     fileIndex,
+    focusFiles,
+    setMainFileSelection,
+    moveToPreviousMainFile,
+    moveToNextMainFile,
     selectedFilePath,
     diffText,
     diffMessage,
@@ -315,4 +339,9 @@ function getNextIndex(current: number, total: number): number {
 function getPreviousIndex(current: number, total: number): number {
   if (total <= 0) return 0
   return (current - 1 + total) % total
+}
+
+function clampSelectionIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return Math.min(Math.max(current, 0), total - 1)
 }

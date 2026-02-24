@@ -56,6 +56,18 @@ export function App({ config }: AppProps) {
           diffMessage={controller.diffMessage}
           diffFiletype={controller.diffFiletype}
           diffView={config.ui.diffView}
+          onFileClick={(index) => {
+            controller.focusFiles()
+            controller.setMainFileSelection(index)
+          }}
+          onFileScroll={(direction) => {
+            controller.focusFiles()
+            if (direction === "up") {
+              controller.moveToPreviousMainFile()
+            } else {
+              controller.moveToNextMainFile()
+            }
+          }}
           theme={theme}
         />
       ) : null}
@@ -65,6 +77,7 @@ export function App({ config }: AppProps) {
           open={true}
           mode={controller.branchDialogMode}
           focus={controller.focus}
+          terminalWidth={terminalWidth}
           terminalHeight={terminalHeight}
           currentBranch={controller.currentBranch}
           branchOptions={controller.branchOptions}
@@ -74,6 +87,30 @@ export function App({ config }: AppProps) {
           branchName={controller.newBranchName}
           branchNameRef={controller.branchNameRef}
           onBranchNameInput={controller.onBranchNameInput}
+          onBranchClick={(index) => {
+            controller.focusBranchDialogList()
+            controller.setBranchSelection(index)
+          }}
+          onBranchStrategyClick={(index) => {
+            controller.focusBranchDialogList()
+            controller.setBranchStrategySelection(index)
+          }}
+          onBranchScroll={(direction) => {
+            controller.focusBranchDialogList()
+            if (direction === "up") {
+              controller.moveBranchSelectionUp()
+            } else {
+              controller.moveBranchSelectionDown()
+            }
+          }}
+          onBranchStrategyScroll={(direction) => {
+            controller.focusBranchDialogList()
+            if (direction === "up") {
+              controller.moveBranchStrategyUp()
+            } else {
+              controller.moveBranchStrategyDown()
+            }
+          }}
           theme={theme}
         />
       ) : null}
@@ -96,13 +133,58 @@ export function App({ config }: AppProps) {
           open={true}
           mode={controller.historyMode}
           focus={controller.focus}
+          terminalWidth={terminalWidth}
           terminalHeight={terminalHeight}
           currentBranch={controller.currentBranch}
           commitOptions={controller.commitOptions}
           commitIndex={controller.commitIndex}
           actionOptions={controller.actionOptions}
           actionIndex={controller.actionIndex}
+          fileOptions={controller.historyFileOptions}
+          fileIndex={controller.historyFileIndex}
           selectedCommitTitle={controller.selectedCommitTitle}
+          selectedCommitPreviewTitle={controller.selectedCommitPreviewTitle}
+          selectedFilePath={controller.selectedHistoryFilePath}
+          diffText={controller.historyDiffText}
+          diffMessage={controller.historyDiffMessage}
+          diffFiletype={controller.historyDiffFiletype}
+          diffView={config.ui.diffView}
+          onCommitClick={(index) => {
+            controller.focusHistoryCommits()
+            controller.setCommitSelection(index)
+          }}
+          onFileClick={(index) => {
+            controller.focusHistoryFiles()
+            controller.setHistoryFileSelection(index)
+          }}
+          onActionClick={(index) => {
+            controller.focusHistoryActions()
+            controller.setHistoryActionSelection(index)
+          }}
+          onCommitScroll={(direction) => {
+            controller.focusHistoryCommits()
+            if (direction === "up") {
+              controller.moveCommitSelectionUp()
+            } else {
+              controller.moveCommitSelectionDown()
+            }
+          }}
+          onFileScroll={(direction) => {
+            controller.focusHistoryFiles()
+            if (direction === "up") {
+              controller.moveHistoryFileSelectionUp()
+            } else {
+              controller.moveHistoryFileSelectionDown()
+            }
+          }}
+          onActionScroll={(direction) => {
+            controller.focusHistoryActions()
+            if (direction === "up") {
+              controller.moveHistoryActionUp()
+            } else {
+              controller.moveHistoryActionDown()
+            }
+          }}
           theme={theme}
         />
       ) : null}

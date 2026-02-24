@@ -28,6 +28,12 @@ export type CommitHistoryEntry = {
   relativeDate: string
   author: string
 }
+
+export type CommitFileChange = {
+  path: string
+  status: string
+  displayPath: string
+}
 export type GitClientOptions = {
   hideWhitespaceChanges: boolean
   historyLimit: number
@@ -63,15 +69,24 @@ export class GitClient {
   async snapshot(): Promise<RepoSnapshot> {
     const [statusResult, branchesResult] = await Promise.all([
       this.runGit(["status", "--porcelain=v1", "--branch", "--untracked-files=all"]),
-      this.runGit(["for-each-ref", "--format=%(refname:short)", "refs/heads"]),
+      this.runGit([
+        "for-each-ref",
+        "--sort=-creatordate",
+        "--format=%(refname:short)\t%(creatordate:unix)",
+        "refs/heads",
+      ]),
     ])
 
     const statusLines = statusResult.stdout.split("\n").filter(Boolean)
     const branchInfo = parseBranchLine(statusLines[0] ?? "")
     const files = parseChangedFiles(statusLines.slice(1))
-    const branches = branchesResult.stdout
+    const branches = sortBranchNames(
+      branchesResult.stdout
       .split("\n")
-      .map((line) => line.trim())
+      .map((line) => parseBranchRefLine(line))
+      .filter((entry): entry is BranchRef => entry !== null),
+    )
+      .map((entry) => entry.name)
       .filter(Boolean)
 
     return {
@@ -176,6 +191,61 @@ export class GitClient {
         author: author ?? "",
       }))
       .filter((entry) => entry.hash.length > 0)
+  }
+
+  async listCommitFiles(commitHash: string): Promise<CommitFileChange[]> {
+    const hash = commitHash.trim()
+    if (!hash) throw new Error("Commit hash is required.")
+
+    const result = await this.runGit([
+      "show",
+      "--format=",
+      "--name-status",
+      "--find-renames",
+      "--find-copies",
+      hash,
+    ], true)
+
+    if (result.code !== 0) {
+      const details = result.stderr || result.stdout
+      throw new Error(details || "Failed to load commit files.")
+    }
+
+    if (!result.stdout.trim()) return []
+
+    return result.stdout
+      .split("\n")
+      .map((line) => parseCommitFileLine(line))
+      .filter((entry): entry is CommitFileChange => entry !== null)
+  }
+
+  async diffForCommitFile(commitHash: string, path: string): Promise<string> {
+    const hash = commitHash.trim()
+    if (!hash) throw new Error("Commit hash is required.")
+
+    const normalizedPath = path.trim()
+    if (!normalizedPath) throw new Error("Commit file path is required.")
+
+    const whitespaceArgs = this.options.hideWhitespaceChanges ? ["-w"] : []
+    const result = await this.runGit([
+      "show",
+      "--format=",
+      "--patch",
+      "--find-renames",
+      "--find-copies",
+      "--no-color",
+      ...whitespaceArgs,
+      hash,
+      "--",
+      normalizedPath,
+    ], true)
+
+    if (result.code !== 0) {
+      const details = result.stderr || result.stdout
+      throw new Error(details || "Failed to load commit file diff.")
+    }
+
+    return result.stdout.trimEnd()
   }
 
   async checkout(branch: string): Promise<void> {
@@ -294,5 +364,70 @@ export class GitClient {
       }
       throw error
     }
+  }
+}
+
+type BranchRef = {
+  name: string
+  createdAtUnix: number
+}
+
+function parseBranchRefLine(line: string): BranchRef | null {
+  const parts = line.split("\t")
+  const name = (parts[0] ?? "").trim()
+  if (!name) return null
+
+  const parsedTimestamp = Number.parseInt((parts[1] ?? "").trim(), 10)
+  return {
+    name,
+    createdAtUnix: Number.isFinite(parsedTimestamp) ? parsedTimestamp : 0,
+  }
+}
+
+function sortBranchNames(branchRefs: BranchRef[]): BranchRef[] {
+  if (branchRefs.length <= 1) return branchRefs
+
+  const main = branchRefs.find((entry) => entry.name === "main")
+  const master = branchRefs.find((entry) => entry.name === "master")
+  const pinned = [main, master].filter((entry): entry is BranchRef => entry !== undefined)
+  const pinnedNames = new Set(pinned.map((entry) => entry.name))
+
+  const rest = branchRefs
+    .filter((entry) => !pinnedNames.has(entry.name))
+    .sort((a, b) => {
+      if (a.createdAtUnix === b.createdAtUnix) {
+        return a.name.localeCompare(b.name)
+      }
+      return b.createdAtUnix - a.createdAtUnix
+    })
+
+  return [...pinned, ...rest]
+}
+
+function parseCommitFileLine(line: string): CommitFileChange | null {
+  const parts = line.split("\t").map((part) => part.trim()).filter(Boolean)
+  if (parts.length < 2) return null
+
+  const rawStatus = parts[0] ?? ""
+  const status = rawStatus.charAt(0).toUpperCase()
+  if (!status) return null
+
+  if (status === "R" || status === "C") {
+    const fromPath = parts[1] ?? ""
+    const toPath = parts[2] ?? fromPath
+    if (!toPath) return null
+    return {
+      path: toPath,
+      status,
+      displayPath: fromPath && fromPath !== toPath ? `${fromPath} -> ${toPath}` : toPath,
+    }
+  }
+
+  const path = parts[1] ?? ""
+  if (!path) return null
+  return {
+    path,
+    status,
+    displayPath: path,
   }
 }

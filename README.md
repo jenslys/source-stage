@@ -44,6 +44,14 @@ stage            # use installed npm package
 stage --dev      # use local checkout at STAGE_DEV_PATH
 ```
 
+AI commit evals:
+
+```bash
+bun run eval:ai
+bun run eval:ai -- --path src/hooks/use-git-tui-keyboard.ts
+bun run eval:ai -- --commit 56d030f072853619483abaf79c57e9104a143d9d
+```
+
 ## Configuration
 
 Config file path:

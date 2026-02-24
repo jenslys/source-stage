@@ -1,7 +1,7 @@
 import { useKeyboard } from "@opentui/react"
 import type { Dispatch, SetStateAction } from "react"
 
-import { COMMIT_FOCUS_ORDER, MAIN_FOCUS_ORDER, type FocusTarget, type TopAction } from "../ui/types"
+import { COMMIT_FOCUS_ORDER, HISTORY_LIST_FOCUS_ORDER, MAIN_FOCUS_ORDER, type FocusTarget, type TopAction } from "../ui/types"
 
 type UseGitTuiKeyboardParams = {
   renderer: {
@@ -37,6 +37,8 @@ type UseGitTuiKeyboardParams = {
   submitHistoryAction: () => Promise<void>
   moveCommitSelectionUp: () => void
   moveCommitSelectionDown: () => void
+  moveHistoryFileSelectionUp: () => void
+  moveHistoryFileSelectionDown: () => void
   moveHistoryActionUp: () => void
   moveHistoryActionDown: () => void
   commitChanges: () => Promise<void>
@@ -78,6 +80,8 @@ export function useGitTuiKeyboard({
   submitHistoryAction,
   moveCommitSelectionUp,
   moveCommitSelectionDown,
+  moveHistoryFileSelectionUp,
+  moveHistoryFileSelectionDown,
   moveHistoryActionUp,
   moveHistoryActionDown,
   commitChanges,
@@ -166,6 +170,34 @@ export function useGitTuiKeyboard({
       return
     }
 
+    if (historyDialogOpen && focus === "history-files" && key.name === "up") {
+      key.preventDefault()
+      key.stopPropagation()
+      moveHistoryFileSelectionUp()
+      return
+    }
+
+    if (historyDialogOpen && focus === "history-files" && key.name === "down") {
+      key.preventDefault()
+      key.stopPropagation()
+      moveHistoryFileSelectionDown()
+      return
+    }
+
+    if (historyDialogOpen && historyDialogMode === "list" && key.name === "left" && focus === "history-files") {
+      key.preventDefault()
+      key.stopPropagation()
+      setFocus("history-commits")
+      return
+    }
+
+    if (historyDialogOpen && historyDialogMode === "list" && key.name === "right" && focus === "history-commits") {
+      key.preventDefault()
+      key.stopPropagation()
+      setFocus("history-files")
+      return
+    }
+
     if (branchDialogOpen && isEnter) {
       key.preventDefault()
       key.stopPropagation()
@@ -242,7 +274,19 @@ export function useGitTuiKeyboard({
         return
       }
       if (historyDialogOpen) {
-        setFocus(historyDialogMode === "action" ? "history-actions" : "history-commits")
+        if (historyDialogMode === "action") {
+          setFocus("history-actions")
+          return
+        }
+
+        setFocus((current) => {
+          const currentIndex = HISTORY_LIST_FOCUS_ORDER.findIndex((item) => item === current)
+          if (currentIndex < 0) return HISTORY_LIST_FOCUS_ORDER[0] ?? "history-commits"
+          const nextIndex = key.shift
+            ? (currentIndex - 1 + HISTORY_LIST_FOCUS_ORDER.length) % HISTORY_LIST_FOCUS_ORDER.length
+            : (currentIndex + 1) % HISTORY_LIST_FOCUS_ORDER.length
+          return HISTORY_LIST_FOCUS_ORDER[nextIndex] ?? "history-commits"
+        })
         return
       }
       const order = commitDialogOpen ? COMMIT_FOCUS_ORDER : MAIN_FOCUS_ORDER

@@ -7,13 +7,28 @@ type CommitHistoryDialogProps = {
   open: boolean
   mode: "list" | "action"
   focus: FocusTarget
+  terminalWidth: number
   terminalHeight: number
   currentBranch: string
   commitOptions: SelectOption[]
   commitIndex: number
   actionOptions: SelectOption[]
   actionIndex: number
+  fileOptions: SelectOption[]
+  fileIndex: number
   selectedCommitTitle: string
+  selectedCommitPreviewTitle: string
+  selectedFilePath: string
+  diffText: string
+  diffMessage: string | null
+  diffFiletype: string | undefined
+  diffView: "unified" | "split"
+  onCommitClick: (index: number) => void
+  onFileClick: (index: number) => void
+  onActionClick: (index: number) => void
+  onCommitScroll: (direction: "up" | "down") => void
+  onFileScroll: (direction: "up" | "down") => void
+  onActionScroll: (direction: "up" | "down") => void
   theme: UiTheme
 }
 
@@ -21,82 +36,288 @@ export function CommitHistoryDialog({
   open,
   mode,
   focus,
+  terminalWidth,
   terminalHeight,
   currentBranch,
   commitOptions,
   commitIndex,
   actionOptions,
   actionIndex,
+  fileOptions,
+  fileIndex,
   selectedCommitTitle,
+  selectedCommitPreviewTitle,
+  selectedFilePath,
+  diffText,
+  diffMessage,
+  diffFiletype,
+  diffView,
+  onCommitClick,
+  onFileClick,
+  onActionClick,
+  onCommitScroll,
+  onFileScroll,
+  onActionScroll,
   theme,
 }: CommitHistoryDialogProps) {
   if (!open) return null
-  const visibleRows = Math.max(4, terminalHeight - 16)
+  const visibleRows = Math.max(1, terminalHeight - 14)
+  const { commitsPaneWidth, filesPaneWidth } = getPaneWidths(terminalWidth)
+  const commitRowWidth = Math.max(commitsPaneWidth - 4, 1)
+  const fileRowWidth = Math.max(filesPaneWidth - 4, 1)
   const commitRange = getVisibleRange(commitOptions.length, commitIndex, visibleRows)
   const actionRange = getVisibleRange(actionOptions.length, actionIndex, visibleRows)
+  const fileRange = getVisibleRange(fileOptions.length, fileIndex, visibleRows)
+  const leftPaneTitle = mode === "list" ? `commits (${commitOptions.length})` : "actions"
+  const selectedPreviewTitle = mode === "action" ? selectedCommitTitle : selectedCommitPreviewTitle
+  const rightPaneTitle = selectedFilePath || selectedPreviewTitle || "no file selected"
+  const commitsFocused = mode === "action" ? focus === "history-actions" : focus === "history-commits"
+  const filesFocused = mode === "list" && focus === "history-files"
 
   return (
     <box
       style={{
         width: "100%",
         flexGrow: 1,
-        paddingLeft: 6,
-        paddingRight: 6,
-        paddingTop: 8,
-        paddingBottom: 4,
+        paddingLeft: 1,
+        paddingRight: 1,
       }}
     >
-      <box style={{ width: "100%", maxWidth: 96, flexDirection: "column", gap: 1, flexGrow: 1 }}>
+      <box style={{ width: "100%", flexDirection: "column", gap: 1, flexGrow: 1 }}>
         <text fg={theme.colors.title}>commit history</text>
         <text fg={theme.colors.subtleText}>current branch: {currentBranch}</text>
+        <text fg={theme.colors.subtleText}>
+          {mode === "list"
+            ? "tab: commits/files | enter: choose action | esc: close"
+            : "up/down choose action | enter confirm | esc back"}
+        </text>
 
-        {mode === "list" ? (
-          <>
-            <text fg={theme.colors.subtleText}>enter to choose action for selected commit | esc to close</text>
-            <box style={{ width: "100%", flexDirection: "column" }}>
-              {commitOptions.slice(commitRange.start, commitRange.end).map((option, visibleIndex) => {
-                const absoluteIndex = commitRange.start + visibleIndex
-                const selected = absoluteIndex === commitIndex
+        <box style={{ flexDirection: "row", flexGrow: 1, gap: 1 }}>
+          <box style={{ width: commitsPaneWidth, flexDirection: "column" }}>
+            <text fg={commitsFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>{leftPaneTitle}</text>
+            <box
+              style={{ flexDirection: "column", flexGrow: 1 }}
+              onMouseScroll={(event) => {
+                const direction = event.scroll?.direction
+                if (direction !== "up" && direction !== "down") return
+                event.preventDefault()
+                event.stopPropagation()
+                if (mode === "action") {
+                  onActionScroll(direction)
+                } else {
+                  onCommitScroll(direction)
+                }
+              }}
+            >
+              {mode === "list"
+                ? commitOptions.slice(commitRange.start, commitRange.end).map((option, visibleIndex) => {
+                    const absoluteIndex = commitRange.start + visibleIndex
+                    const selected = absoluteIndex === commitIndex
+                    const optionName = option.name ?? String(option.value ?? "")
+                    const optionDescription = option.description ?? ""
+                    const label = optionDescription ? `${optionDescription}  ${optionName}` : optionName
+
+                    return (
+                      <box
+                        key={`${optionName}-${absoluteIndex}`}
+                        style={{ height: 1, flexDirection: "row", ...resolveRowBackground({
+                          selected,
+                          focused: focus === "history-commits",
+                          theme,
+                        }) }}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onCommitClick(absoluteIndex)
+                        }}
+                      >
+                        <text fg={resolveRowTextColor({
+                          selected,
+                          focused: focus === "history-commits",
+                          theme,
+                        })}>
+                          {selected ? "▶ " : "  "}
+                          {fitLine(label, commitRowWidth)}
+                        </text>
+                      </box>
+                    )
+                  })
+                : actionOptions.slice(actionRange.start, actionRange.end).map((option, visibleIndex) => {
+                    const absoluteIndex = actionRange.start + visibleIndex
+                    const selected = absoluteIndex === actionIndex
+                    const optionName = option.name ?? String(option.value ?? "")
+                    const optionDescription = option.description ?? ""
+                    const label = optionDescription ? `${optionName} - ${optionDescription}` : optionName
+
+                    return (
+                      <box
+                        key={`${optionName}-${absoluteIndex}`}
+                        style={{ height: 1, flexDirection: "row", ...resolveRowBackground({
+                          selected,
+                          focused: focus === "history-actions",
+                          theme,
+                        }) }}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onActionClick(absoluteIndex)
+                        }}
+                      >
+                        <text fg={resolveRowTextColor({
+                          selected,
+                          focused: focus === "history-actions",
+                          theme,
+                        })}>
+                          {selected ? "▶ " : "  "}
+                          {fitLine(label, commitRowWidth)}
+                        </text>
+                      </box>
+                    )
+                  })}
+            </box>
+          </box>
+
+          <box style={{ width: filesPaneWidth, flexDirection: "column" }}>
+            <text fg={filesFocused ? theme.colors.inputFocusedText : theme.colors.subtleText}>files ({fileOptions.length})</text>
+            <box
+              style={{ flexDirection: "column", flexGrow: 1 }}
+              onMouseScroll={(event) => {
+                const direction = event.scroll?.direction
+                if (direction !== "up" && direction !== "down") return
+                event.preventDefault()
+                event.stopPropagation()
+                onFileScroll(direction)
+              }}
+            >
+              {fileOptions.slice(fileRange.start, fileRange.end).map((option, visibleIndex) => {
+                const absoluteIndex = fileRange.start + visibleIndex
+                const selected = absoluteIndex === fileIndex
                 const optionName = option.name ?? String(option.value ?? "")
                 const optionDescription = option.description ?? ""
+                const label = optionDescription ? `${optionDescription}  ${optionName}` : optionName
+
                 return (
-                  <box key={`${optionName}-${absoluteIndex}`} style={{ flexDirection: "column", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}>
-                    <text fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
+                  <box
+                    key={`${optionName}-${absoluteIndex}`}
+                    style={{ height: 1, flexDirection: "row", ...resolveRowBackground({
+                      selected,
+                      focused: focus === "history-files",
+                      theme,
+                    }) }}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      onFileClick(absoluteIndex)
+                    }}
+                  >
+                    <text fg={resolveRowTextColor({
+                      selected,
+                      focused: focus === "history-files",
+                      theme,
+                    })}>
                       {selected ? "▶ " : "  "}
-                      {optionName}
+                      {fitLine(label, fileRowWidth)}
                     </text>
-                    {optionDescription ? <text fg={theme.colors.subtleText}>  {optionDescription}</text> : null}
                   </box>
                 )
               })}
             </box>
-          </>
-        ) : (
-          <>
-            <text fg={theme.colors.text}>{selectedCommitTitle}</text>
-            <text fg={theme.colors.subtleText}>choose action | enter confirm | esc back</text>
-            <box style={{ width: "100%", flexDirection: "column" }}>
-              {actionOptions.slice(actionRange.start, actionRange.end).map((option, visibleIndex) => {
-                const absoluteIndex = actionRange.start + visibleIndex
-                const selected = absoluteIndex === actionIndex
-                const optionName = option.name ?? String(option.value ?? "")
-                const optionDescription = option.description ?? ""
-                return (
-                  <box key={`${optionName}-${absoluteIndex}`} style={{ flexDirection: "column", ...(selected ? { backgroundColor: theme.colors.selectSelectedBackground } : {}) }}>
-                    <text fg={selected ? theme.colors.selectSelectedText : theme.colors.text}>
-                      {selected ? "▶ " : "  "}
-                      {optionName}
-                    </text>
-                    {optionDescription ? <text fg={theme.colors.subtleText}>  {optionDescription}</text> : null}
-                  </box>
-                )
-              })}
-            </box>
-          </>
-        )}
+          </box>
+
+          <box style={{ flexGrow: 1, flexDirection: "column" }}>
+            <text fg={theme.colors.mutedText}>{rightPaneTitle}</text>
+            {diffMessage ? (
+              <box style={{ width: "100%", height: "100%", paddingLeft: 1, paddingTop: 1 }}>
+                <text fg={theme.colors.subtleText}>{diffMessage}</text>
+              </box>
+            ) : (
+              <diff
+                key={rightPaneTitle || "history-no-selection"}
+                diff={diffText}
+                view={diffView}
+                filetype={diffFiletype}
+                syntaxStyle={theme.diffSyntaxStyle}
+                showLineNumbers={true}
+                wrapMode="none"
+                lineNumberFg={theme.colors.diffLineNumber}
+                addedBg={theme.colors.diffAddedBackground}
+                removedBg={theme.colors.diffRemovedBackground}
+                addedContentBg={theme.colors.diffAddedBackground}
+                removedContentBg={theme.colors.diffRemovedBackground}
+                addedLineNumberBg={theme.colors.diffAddedLineNumberBackground}
+                removedLineNumberBg={theme.colors.diffRemovedLineNumberBackground}
+                fg={theme.colors.diffForeground}
+                style={{ width: "100%", height: "100%" }}
+              />
+            )}
+          </box>
+        </box>
       </box>
     </box>
   )
+}
+
+function resolveRowTextColor({
+  selected,
+  focused,
+  theme,
+}: {
+  selected: boolean
+  focused: boolean
+  theme: UiTheme
+}): string {
+  if (selected && focused) return theme.colors.selectSelectedText
+  if (selected) return theme.colors.selectText
+  if (focused) return theme.colors.text
+  return theme.colors.subtleText
+}
+
+function resolveRowBackground({
+  selected,
+  focused,
+  theme,
+}: {
+  selected: boolean
+  focused: boolean
+  theme: UiTheme
+}): { backgroundColor?: string } {
+  if (selected && focused) {
+    return { backgroundColor: theme.colors.selectSelectedBackground }
+  }
+  return {}
+}
+
+function getPaneWidths(terminalWidth: number): { commitsPaneWidth: number; filesPaneWidth: number } {
+  if (!Number.isFinite(terminalWidth) || terminalWidth <= 0) {
+    return { commitsPaneWidth: 42, filesPaneWidth: 34 }
+  }
+
+  const minimumCommitsWidth = 30
+  const minimumFilesWidth = 26
+  const minimumDiffWidth = 48
+  const preferredCommitsWidth = Math.floor(terminalWidth * 0.32)
+  const maxCommitsWidth = Math.max(minimumCommitsWidth, terminalWidth - minimumFilesWidth - minimumDiffWidth)
+  const commitsPaneWidth = clamp(preferredCommitsWidth, minimumCommitsWidth, maxCommitsWidth)
+
+  const preferredFilesWidth = Math.floor(terminalWidth * 0.24)
+  const maxFilesWidth = Math.max(minimumFilesWidth, terminalWidth - commitsPaneWidth - minimumDiffWidth)
+  const filesPaneWidth = clamp(preferredFilesWidth, minimumFilesWidth, maxFilesWidth)
+
+  return {
+    commitsPaneWidth,
+    filesPaneWidth,
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function fitLine(text: string, width: number): string {
+  if (width <= 0) return ""
+  if (text.length <= width) return text.padEnd(width, " ")
+  if (width <= 3) return text.slice(0, width)
+  return `${text.slice(0, width - 3)}...`
 }
 
 function getVisibleRange(total: number, selectedIndex: number, windowSize: number): { start: number; end: number } {

@@ -41,17 +41,18 @@ export function useBranchDialogController({
   const [branchStrategyIndex, setBranchStrategyIndex] = useState(0)
   const [pendingBranchAction, setPendingBranchAction] = useState<PendingBranchAction | null>(null)
   const [newBranchName, setNewBranchName] = useState("")
+  const branchNames = snapshot?.branches ?? []
 
   const branchOptions = useMemo<SelectOption[]>(
     () => [
-      ...(snapshot?.branches ?? []).map((branch) => ({
+      { name: "+ create new branch...", description: "", value: CREATE_BRANCH_VALUE },
+      ...branchNames.map((branch) => ({
         name: branch,
-        description: branch === snapshot?.branch ? "Current branch" : "Checkout branch",
+        description: branch === snapshot?.branch ? "current branch" : "",
         value: branch,
       })),
-      { name: "+ create new branch...", description: "Create and checkout", value: CREATE_BRANCH_VALUE },
     ],
-    [snapshot],
+    [branchNames, snapshot?.branch],
   )
 
   const openBranchDialog = useCallback(() => {
@@ -62,9 +63,13 @@ export function useBranchDialogController({
     setBranchStrategyIndex(0)
     setFocus("branch-dialog-list")
 
-    const currentBranchIndex = snapshot?.branches.findIndex((branch) => branch === snapshot.branch) ?? -1
-    setBranchIndex(currentBranchIndex >= 0 ? currentBranchIndex : 0)
-  }, [setFocus, snapshot])
+    const currentBranchIndex = branchNames.findIndex((branch) => branch === snapshot?.branch)
+    if (currentBranchIndex >= 0) {
+      setBranchIndex(currentBranchIndex + 1)
+      return
+    }
+    setBranchIndex(branchOptions.length > 1 ? 1 : 0)
+  }, [branchNames, branchOptions.length, setFocus, snapshot?.branch])
 
   const closeBranchDialog = useCallback(() => {
     setBranchDialogOpen(false)
@@ -177,6 +182,24 @@ export function useBranchDialogController({
     setBranchStrategyIndex((current) => getNextIndex(current, BRANCH_STRATEGY_OPTIONS.length))
   }, [])
 
+  const setBranchSelection = useCallback((index: number) => {
+    const total = branchOptions.length
+    if (total <= 0) return
+    const normalized = clampSelectionIndex(index, total)
+    setBranchIndex(normalized)
+  }, [branchOptions.length])
+
+  const setBranchStrategySelection = useCallback((index: number) => {
+    const total = BRANCH_STRATEGY_OPTIONS.length
+    if (total <= 0) return
+    const normalized = clampSelectionIndex(index, total)
+    setBranchStrategyIndex(normalized)
+  }, [])
+
+  const focusBranchDialogList = useCallback(() => {
+    setFocus("branch-dialog-list")
+  }, [setFocus])
+
   return {
     branchDialogOpen,
     branchDialogMode,
@@ -195,6 +218,9 @@ export function useBranchDialogController({
     moveBranchSelectionDown,
     moveBranchStrategyUp,
     moveBranchStrategyDown,
+    setBranchSelection,
+    setBranchStrategySelection,
+    focusBranchDialogList,
     onBranchNameInput: setNewBranchName,
   }
 }
@@ -207,4 +233,9 @@ function getNextIndex(current: number, total: number): number {
 function getPreviousIndex(current: number, total: number): number {
   if (total <= 0) return 0
   return (current - 1 + total) % total
+}
+
+function clampSelectionIndex(current: number, total: number): number {
+  if (total <= 0) return 0
+  return Math.min(Math.max(current, 0), total - 1)
 }

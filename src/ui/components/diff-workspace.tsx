@@ -12,6 +12,8 @@ type DiffWorkspaceProps = {
   diffMessage: string | null
   diffFiletype: string | undefined
   diffView: "unified" | "split"
+  onFileClick: (index: number) => void
+  onFileScroll: (direction: "up" | "down") => void
   theme: UiTheme
 }
 
@@ -26,6 +28,8 @@ export function DiffWorkspace({
   diffMessage,
   diffFiletype,
   diffView,
+  onFileClick,
+  onFileScroll,
   theme,
 }: DiffWorkspaceProps) {
   const visibleRows = Math.max(1, terminalHeight - 6)
@@ -37,12 +41,29 @@ export function DiffWorkspace({
     <box style={{ flexDirection: "row", flexGrow: 1, gap: 1, paddingLeft: 1, paddingRight: 1 }}>
       <box style={{ width: changesPaneWidth, flexDirection: "column" }}>
         <text fg={theme.colors.mutedText}>changes ({fileRows.length})</text>
-        <box style={{ flexDirection: "column", flexGrow: 1 }}>
+        <box
+          style={{ flexDirection: "column", flexGrow: 1 }}
+          onMouseScroll={(event) => {
+            const direction = event.scroll?.direction
+            if (direction !== "up" && direction !== "down") return
+            event.preventDefault()
+            event.stopPropagation()
+            onFileScroll(direction)
+          }}
+        >
           {rows.map((row, rowIndex) => {
             const absoluteIndex = start + rowIndex
             const selected = absoluteIndex === fileIndex
             return (
-              <box key={row.path} style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}) }}>
+              <box
+                key={row.path}
+                style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}) }}
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onFileClick(absoluteIndex)
+                }}
+              >
                 <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>{row.included ? "[x]" : "[ ]"}</text>
                 <text fg={theme.colors.subtleText}> </text>
                 <text fg={row.statusColor}>{row.statusSymbol}</text>

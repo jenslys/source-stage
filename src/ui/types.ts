@@ -3,6 +3,7 @@ export type FocusTarget =
   | "branch-dialog-list"
   | "branch-create"
   | "history-commits"
+  | "history-files"
   | "history-actions"
   | "commit-summary"
   | "commit-description"
@@ -10,6 +11,7 @@ export type TopAction = "refresh" | "fetch" | "pull" | "push" | "commit"
 
 export const MAIN_FOCUS_ORDER: FocusTarget[] = ["files"]
 export const COMMIT_FOCUS_ORDER: FocusTarget[] = ["commit-summary", "commit-description"]
+export const HISTORY_LIST_FOCUS_ORDER: FocusTarget[] = ["history-commits", "history-files"]
 
 export type FileRow = {
   path: string

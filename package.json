@@ -27,7 +27,8 @@
     "stage": "./bin/stage"
   },
   "scripts": {
-    "stage": "bun run index.ts"
+    "stage": "bun run index.ts",
+    "eval:ai": "bun run src/ai-commit-eval.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
