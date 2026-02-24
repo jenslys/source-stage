@@ -19,7 +19,7 @@ export async function runGitRaw(cwd: string, args: string[]): Promise<GitCommand
 
   return {
     code,
-    stdout: stdout.trimEnd(),
-    stderr: stderr.trimEnd(),
+    stdout,
+    stderr,
   }
 }

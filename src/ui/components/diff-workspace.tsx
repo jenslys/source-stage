@@ -1,7 +1,9 @@
 import type { UiTheme } from "../theme"
 import type { FileRow, FocusTarget } from "../types"
+import { fitPathPartsForWidth } from "../utils"
 
 type DiffWorkspaceProps = {
+  hasSnapshot: boolean
   fileRows: FileRow[]
   fileIndex: number
   selectedFilePath: string | null
@@ -18,6 +20,7 @@ type DiffWorkspaceProps = {
 }
 
 export function DiffWorkspace({
+  hasSnapshot,
   fileRows,
   fileIndex,
   selectedFilePath,
@@ -34,8 +37,13 @@ export function DiffWorkspace({
 }: DiffWorkspaceProps) {
   const visibleRows = Math.max(1, terminalHeight - 6)
   const changesPaneWidth = getChangesPaneWidth(terminalWidth)
+  const filePathWidth = Math.max(changesPaneWidth - 6, 1)
   const { start, end } = getVisibleRange(fileRows.length, fileIndex, visibleRows)
   const rows = fileRows.slice(start, end)
+  const showLoadingState = !hasSnapshot
+  const showCleanState = hasSnapshot && fileRows.length === 0
+  const showUnselectedState = hasSnapshot && fileRows.length > 0 && !selectedFilePath
+  const paneLabel = selectedFilePath ?? (showLoadingState ? "loading" : showCleanState ? "overview" : "no file selected")
 
   return (
     <box style={{ flexDirection: "row", flexGrow: 1, gap: 1, paddingLeft: 1, paddingRight: 1 }}>
@@ -51,33 +59,61 @@ export function DiffWorkspace({
             onFileScroll(direction)
           }}
         >
-          {rows.map((row, rowIndex) => {
-            const absoluteIndex = start + rowIndex
-            const selected = absoluteIndex === fileIndex
-            return (
-              <box
-                key={row.path}
-                style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}) }}
-                onMouseDown={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  onFileClick(absoluteIndex)
-                }}
-              >
-                <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>{row.included ? "[x]" : "[ ]"}</text>
-                <text fg={theme.colors.subtleText}> </text>
-                <text fg={row.statusColor}>{row.statusSymbol}</text>
-                <text fg={theme.colors.subtleText}> </text>
-                {row.directory ? <text fg={theme.colors.subtleText}>{row.directory}</text> : null}
-                <text fg={selected || focus === "files" ? theme.colors.inputFocusedText : theme.colors.text}>{row.filename}</text>
-              </box>
-            )
-          })}
+          {rows.length === 0 ? (
+            <box style={{ paddingLeft: 1, paddingTop: 1 }}>
+              <text fg={theme.colors.subtleText}>{showLoadingState ? "loading changes..." : "working tree clean"}</text>
+            </box>
+          ) : (
+            rows.map((row, rowIndex) => {
+              const absoluteIndex = start + rowIndex
+              const selected = absoluteIndex === fileIndex
+              const fittedPath = fitPathPartsForWidth(row.directory, row.filename, filePathWidth)
+              return (
+                <box
+                  key={row.path}
+                  style={{ height: 1, flexDirection: "row", ...(selected ? { backgroundColor: theme.colors.selectedRowBackground } : {}) }}
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    onFileClick(absoluteIndex)
+                  }}
+                >
+                  <text fg={row.included ? theme.colors.text : theme.colors.subtleText}>{row.included ? "[x]" : "[ ]"}</text>
+                  <text fg={theme.colors.subtleText}> </text>
+                  <text fg={row.statusColor}>{row.statusSymbol}</text>
+                  <text fg={theme.colors.subtleText}> </text>
+                  {fittedPath.directory ? <text fg={theme.colors.subtleText}>{fittedPath.directory}</text> : null}
+                  <text fg={selected || focus === "files" ? theme.colors.inputFocusedText : theme.colors.text}>{fittedPath.filename}</text>
+                </box>
+              )
+            })
+          )}
         </box>
       </box>
       <box style={{ flexGrow: 1, flexDirection: "column" }}>
-        <text fg={theme.colors.mutedText}>{selectedFilePath ?? "no file selected"}</text>
-        {diffMessage ? (
+        <text fg={theme.colors.mutedText}>{paneLabel}</text>
+        {showLoadingState ? (
+          <EmptyStatePanel
+            title="loading repository state..."
+            subtitle="Fetching branch and working tree status."
+            hint="r refresh  ? shortcuts"
+            theme={theme}
+          />
+        ) : showCleanState ? (
+          <EmptyStatePanel
+            title="working tree clean"
+            subtitle="No unstaged or staged changes in this repository."
+            hint="r refresh  b branch  h history  ? shortcuts"
+            theme={theme}
+          />
+        ) : showUnselectedState ? (
+          <EmptyStatePanel
+            title="select a file to preview diff"
+            subtitle="Use ↑ / ↓ to change selection in the changes list."
+            hint="space include/exclude  c commit  ? shortcuts"
+            theme={theme}
+          />
+        ) : diffMessage ? (
           <box style={{ width: "100%", height: "100%", paddingLeft: 1, paddingTop: 1 }}>
             <text fg={theme.colors.subtleText}>{diffMessage}</text>
           </box>
@@ -101,6 +137,25 @@ export function DiffWorkspace({
             style={{ width: "100%", height: "100%" }}
           />
         )}
+      </box>
+    </box>
+  )
+}
+
+type EmptyStatePanelProps = {
+  title: string
+  subtitle: string
+  hint: string
+  theme: UiTheme
+}
+
+function EmptyStatePanel({ title, subtitle, hint, theme }: EmptyStatePanelProps) {
+  return (
+    <box style={{ width: "100%", height: "100%", justifyContent: "center", alignItems: "center" }}>
+      <box style={{ width: "100%", maxWidth: 62, flexDirection: "column", gap: 1, paddingLeft: 2, paddingRight: 2 }}>
+        <text fg={theme.colors.text}>{title}</text>
+        <text fg={theme.colors.subtleText}>{subtitle}</text>
+        <text fg={theme.colors.hintText}>{hint}</text>
       </box>
     </box>
   )

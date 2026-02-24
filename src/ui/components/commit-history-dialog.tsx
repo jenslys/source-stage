@@ -2,6 +2,7 @@ import type { SelectOption } from "@opentui/core"
 
 import type { UiTheme } from "../theme"
 import type { FocusTarget } from "../types"
+import { fitLine, fitPathForWidth } from "../utils"
 
 type CommitHistoryDialogProps = {
   open: boolean
@@ -194,7 +195,9 @@ export function CommitHistoryDialog({
                 const selected = absoluteIndex === fileIndex
                 const optionName = option.name ?? String(option.value ?? "")
                 const optionDescription = option.description ?? ""
-                const label = optionDescription ? `${optionDescription}  ${optionName}` : optionName
+                const prefix = optionDescription ? `${optionDescription}  ` : ""
+                const pathWidth = Math.max(fileRowWidth - prefix.length, 0)
+                const label = `${prefix}${fitPathForWidth(optionName, pathWidth)}`
 
                 return (
                   <box
@@ -311,13 +314,6 @@ function getPaneWidths(terminalWidth: number): { commitsPaneWidth: number; files
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
-}
-
-function fitLine(text: string, width: number): string {
-  if (width <= 0) return ""
-  if (text.length <= width) return text.padEnd(width, " ")
-  if (width <= 3) return text.slice(0, width)
-  return `${text.slice(0, width - 3)}...`
 }
 
 function getVisibleRange(total: number, selectedIndex: number, windowSize: number): { start: number; end: number } {

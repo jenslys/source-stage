@@ -309,6 +309,7 @@ export function useGitTuiController(renderer: RendererLike, config: StageConfig)
     branchNameRef,
     ...branchDialog,
     ...commitHistory,
+    hasSnapshot: snapshot !== null,
     fileRows,
     fileIndex,
     focusFiles,

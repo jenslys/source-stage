@@ -103,25 +103,25 @@ export class GitClient {
   async diffForFile(path: string): Promise<string> {
     const whitespaceArgs = this.options.hideWhitespaceChanges ? ["-w"] : []
     const [unstaged, staged] = await Promise.all([
-      this.runGit(["diff", ...whitespaceArgs, "--", path], true),
-      this.runGit(["diff", "--cached", ...whitespaceArgs, "--", path], true),
+      this.runGit(["diff", "--no-color", ...whitespaceArgs, "--", path], true),
+      this.runGit(["diff", "--cached", "--no-color", ...whitespaceArgs, "--", path], true),
     ])
 
     const sections: string[] = []
     if (staged.stdout.trim()) {
-      sections.push(`# Staged\n${staged.stdout.trimEnd()}`)
+      sections.push(staged.stdout)
     }
     if (unstaged.stdout.trim()) {
-      sections.push(`# Unstaged\n${unstaged.stdout.trimEnd()}`)
+      sections.push(unstaged.stdout)
     }
 
     if (sections.length > 0) {
-      return sections.join("\n\n")
+      return sections.join("\n")
     }
 
-    const untracked = await this.runGit(["diff", "--no-index", ...whitespaceArgs, "--", "/dev/null", path], true)
+    const untracked = await this.runGit(["diff", "--no-index", "--no-color", ...whitespaceArgs, "--", "/dev/null", path], true)
     if (untracked.stdout.trim()) {
-      return `# Untracked\n${untracked.stdout.trimEnd()}`
+      return untracked.stdout
     }
 
     return ""
@@ -245,7 +245,7 @@ export class GitClient {
       throw new Error(details || "Failed to load commit file diff.")
     }
 
-    return result.stdout.trimEnd()
+    return result.stdout
   }
 
   async checkout(branch: string): Promise<void> {

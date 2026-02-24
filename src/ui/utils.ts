@@ -16,10 +16,48 @@ export function inferFiletype(path: string | undefined): string | undefined {
   return normalized
 }
 
+export function fitLine(text: string, width: number): string {
+  if (width <= 0) return ""
+  if (text.length <= width) return text.padEnd(width, " ")
+  if (width <= 3) return text.slice(0, width)
+  return `${text.slice(0, width - 3)}...`
+}
+
+export function fitPathForWidth(path: string, width: number): string {
+  const pathParts = splitPathParts(path)
+  const fitted = fitPathPartsForWidth(pathParts.directory, pathParts.filename, width)
+  return `${fitted.directory}${fitted.filename}`
+}
+
+export function fitPathPartsForWidth(directory: string, filename: string, width: number): { directory: string; filename: string } {
+  if (width <= 0) return { directory: "", filename: "" }
+
+  const fullPath = `${directory}${filename}`
+  if (fullPath.length <= width) {
+    return { directory, filename }
+  }
+
+  if (filename.length >= width) {
+    return {
+      directory: "",
+      filename: fitPathTail(filename, width),
+    }
+  }
+
+  const directoryWidth = width - filename.length
+  if (directoryWidth <= 3) {
+    return { directory: "", filename }
+  }
+
+  return {
+    directory: fitMiddle(directory, directoryWidth),
+    filename,
+  }
+}
+
 export function fitFooterLine(text: string, width: number): string {
   if (width <= 0) return text
-  if (text.length > width) return text.slice(0, width)
-  return text.padEnd(width, " ")
+  return fitLine(text, width)
 }
 
 export function fitFooterStatusLine(left: string, right: string, width: number): string {
@@ -76,6 +114,24 @@ function splitPathParts(path: string): { directory: string; filename: string } {
     directory: path.slice(0, lastSlash + 1),
     filename: path.slice(lastSlash + 1),
   }
+}
+
+function fitPathTail(path: string, width: number): string {
+  if (width <= 0) return ""
+  if (path.length <= width) return path
+  if (width <= 3) return path.slice(0, width)
+  return `...${path.slice(-(width - 3))}`
+}
+
+function fitMiddle(text: string, width: number): string {
+  if (width <= 0) return ""
+  if (text.length <= width) return text
+  if (width <= 3) return text.slice(0, width)
+
+  const visible = width - 3
+  const head = Math.ceil(visible / 2)
+  const tail = Math.floor(visible / 2)
+  return `${text.slice(0, head)}...${text.slice(text.length - tail)}`
 }
 
 function resolveStatusSymbol(file: ChangedFile): string {
