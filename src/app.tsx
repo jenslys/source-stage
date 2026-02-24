@@ -7,7 +7,6 @@ import { useGitTuiController } from "./hooks/use-git-tui-controller"
 import { CommitDialog } from "./ui/components/commit-dialog"
 import { DiffWorkspace } from "./ui/components/diff-workspace"
 import { FooterBar } from "./ui/components/footer-bar"
-import { SplashScreen } from "./ui/components/splash-screen"
 import { ShortcutsDialog } from "./ui/components/shortcuts-dialog"
 import { TopBar } from "./ui/components/top-bar"
 import { resolveUiTheme } from "./ui/theme"
@@ -46,36 +45,32 @@ export function App({ config }: AppProps) {
       />
 
       {activeScreen === "main" ? (
-        controller.hasSnapshot ? (
-          <DiffWorkspace
-            hasSnapshot={controller.hasSnapshot}
-            fileRows={controller.fileRows}
-            fileIndex={controller.fileIndex}
-            selectedFilePath={controller.selectedFilePath}
-            focus={controller.focus}
-            terminalWidth={terminalWidth}
-            terminalHeight={terminalHeight}
-            diffText={controller.diffText}
-            diffMessage={controller.diffMessage}
-            diffFiletype={controller.diffFiletype}
-            diffView={config.ui.diffView}
-            onFileClick={(index) => {
-              controller.focusFiles()
-              controller.setMainFileSelection(index)
-            }}
-            onFileScroll={(direction) => {
-              controller.focusFiles()
-              if (direction === "up") {
-                controller.moveToPreviousMainFile()
-              } else {
-                controller.moveToNextMainFile()
-              }
-            }}
-            theme={theme}
-          />
-        ) : (
-          <SplashScreen theme={theme} />
-        )
+        <DiffWorkspace
+          hasSnapshot={controller.hasSnapshot}
+          fileRows={controller.fileRows}
+          fileIndex={controller.fileIndex}
+          selectedFilePath={controller.selectedFilePath}
+          focus={controller.focus}
+          terminalWidth={terminalWidth}
+          terminalHeight={terminalHeight}
+          diffText={controller.diffText}
+          diffMessage={controller.diffMessage}
+          diffFiletype={controller.diffFiletype}
+          diffView={config.ui.diffView}
+          onFileClick={(index) => {
+            controller.focusFiles()
+            controller.setMainFileSelection(index)
+          }}
+          onFileScroll={(direction) => {
+            controller.focusFiles()
+            if (direction === "up") {
+              controller.moveToPreviousMainFile()
+            } else {
+              controller.moveToNextMainFile()
+            }
+          }}
+          theme={theme}
+        />
       ) : null}
 
       {activeScreen === "branch" ? (
