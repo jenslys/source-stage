@@ -2,7 +2,7 @@ import { createCerebras } from "@ai-sdk/cerebras"
 
 import type { StageConfig } from "../config"
 import type { ChangedFile, GitClient } from "../git"
-import { buildCommitContext } from "./context-builder"
+import { buildCommitContext, type CommitContextStats } from "./context-builder"
 import { generateCommitDraft } from "./draft"
 import { resolveTokenizer } from "./tokenizer"
 
@@ -11,6 +11,7 @@ type GenerateAiCommitSummaryParams = {
   files: ChangedFile[]
   selectedPaths: string[]
   aiConfig: StageConfig["ai"]
+  onContextBuilt?: (stats: CommitContextStats) => void
 }
 
 export async function generateAiCommitSummary({
@@ -18,6 +19,7 @@ export async function generateAiCommitSummary({
   files,
   selectedPaths,
   aiConfig,
+  onContextBuilt,
 }: GenerateAiCommitSummaryParams): Promise<string> {
   if (!aiConfig.enabled) {
     throw new Error("AI commit generation is disabled in config.")
@@ -36,15 +38,14 @@ export async function generateAiCommitSummary({
 
   const tokenizer = resolveTokenizer(aiConfig.model)
   const fileByPath = new Map(files.map((file) => [file.path, file]))
-  const context = await buildCommitContext({
+  const { context, stats } = await buildCommitContext({
     git,
     fileByPath,
     selectedPaths: selected,
-    maxFiles: aiConfig.maxFiles,
     maxInputTokens: aiConfig.maxInputTokens,
-    maxTokensPerFile: aiConfig.maxTokensPerFile,
     tokenizer,
   })
+  onContextBuilt?.(stats)
 
   const cerebras = createCerebras({
     apiKey: aiConfig.apiKey,
@@ -62,6 +63,6 @@ export async function generateAiCommitSummary({
   }
 
   throw new Error(
-    "AI did not return a usable conventional commit message. Try again or adjust ai.reasoning_effort / ai.max_input_tokens / ai.max_tokens_per_file.",
+    "AI did not return a usable conventional commit message. Try again or adjust ai.reasoning_effort / ai.max_input_tokens.",
   )
 }

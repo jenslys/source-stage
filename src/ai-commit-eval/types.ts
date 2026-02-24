@@ -1,16 +1,16 @@
 import type { StageConfig } from "../config"
+import type { CommitContextStats } from "../ai-commit"
 
 export type CliOptions = {
   commits: string[]
   paths: string[]
   json: boolean
+  verbose: boolean
   keepWorktrees: boolean
   apiKey?: string
   model?: string
   reasoningEffort?: StageConfig["ai"]["reasoningEffort"]
   maxInputTokens?: number
-  maxFiles?: number
-  maxTokensPerFile?: number
 }
 
 export type EvalResult = {
@@ -21,6 +21,7 @@ export type EvalResult = {
   actualSubject?: string
   generatedSubject: string
   generatedLength: number
+  contextStats?: CommitContextStats
 }
 
 export type GitEvalOptions = {

@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     return
   }
 
-  printResults(results)
+  printResults(results, { verbose: options.verbose })
 }
 
 await main().catch((error) => {

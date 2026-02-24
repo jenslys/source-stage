@@ -1,4 +1,5 @@
 import { generateAiCommitSummary } from "../ai-commit"
+import type { CommitContextStats } from "../ai-commit"
 import type { StageConfig } from "../config"
 import { GitClient } from "../git"
 import { createReplayWorktree, removeWorktree } from "./replay-worktree"
@@ -29,11 +30,15 @@ export async function evaluateCommit({
       selectedPathsOverride.length > 0 ? selectedPathsOverride : replay.commitPaths,
     )
 
+    let contextStats: CommitContextStats | undefined
     const summary = await generateAiCommitSummary({
       git,
       files: snapshot.files,
       selectedPaths,
       aiConfig,
+      onContextBuilt: (stats) => {
+        contextStats = stats
+      },
     })
 
     return {
@@ -44,6 +49,7 @@ export async function evaluateCommit({
       selectedPaths,
       generatedSubject: summary,
       generatedLength: summary.length,
+      contextStats,
     }
   } finally {
     if (!keepWorktree) {

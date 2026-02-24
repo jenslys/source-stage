@@ -124,8 +124,6 @@ export function parseStageConfigToml(
         "model",
         "reasoning_effort",
         "max_input_tokens",
-        "max_files",
-        "max_tokens_per_file",
       ],
       `[ai] in ${sourcePath}`,
     )
@@ -175,25 +173,6 @@ export function parseStageConfigToml(
       }
       config.ai.maxInputTokens = maxInputTokens
     }
-
-    if (ai.max_files !== undefined) {
-      const maxFiles = asInteger(ai.max_files, `ai.max_files in ${sourcePath}`)
-      if (maxFiles <= 0) {
-        throw new Error(`ai.max_files in ${sourcePath} must be greater than 0.`)
-      }
-      config.ai.maxFiles = maxFiles
-    }
-
-    if (ai.max_tokens_per_file !== undefined) {
-      const maxTokensPerFile = asInteger(
-        ai.max_tokens_per_file,
-        `ai.max_tokens_per_file in ${sourcePath}`,
-      )
-      if (maxTokensPerFile <= 0) {
-        throw new Error(`ai.max_tokens_per_file in ${sourcePath} must be greater than 0.`)
-      }
-      config.ai.maxTokensPerFile = maxTokensPerFile
-    }
   }
 
   if (config.ai.enabled && !config.ai.apiKey) {
@@ -228,8 +207,6 @@ function cloneConfig(config: StageConfig): StageConfig {
       model: config.ai.model,
       reasoningEffort: config.ai.reasoningEffort,
       maxInputTokens: config.ai.maxInputTokens,
-      maxFiles: config.ai.maxFiles,
-      maxTokensPerFile: config.ai.maxTokensPerFile,
     },
   }
 }

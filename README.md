@@ -52,6 +52,7 @@ AI commit evals:
 bun run eval:ai
 bun run eval:ai -- --path src/hooks/use-git-tui-keyboard.ts
 bun run eval:ai -- --commit 56d030f072853619483abaf79c57e9104a143d9d
+bun run eval:ai -- --commit 56d030f072853619483abaf79c57e9104a143d9d --verbose
 ```
 
 ## Configuration
@@ -98,9 +99,7 @@ provider = "cerebras"                # currently only supported provider
 api_key = ""                         # required when enabled = true
 model = "gpt-oss-120b"
 reasoning_effort = "low"             # "low" | "medium" | "high"
-max_input_tokens = 24000
-max_files = 32
-max_tokens_per_file = 4000
+max_input_tokens = 48000
 ```
 
 </details>

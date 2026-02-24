@@ -28,8 +28,6 @@ export type StageConfig = {
     model: string
     reasoningEffort: "low" | "medium" | "high"
     maxInputTokens: number
-    maxFiles: number
-    maxTokensPerFile: number
   }
 }
 
@@ -61,9 +59,7 @@ export const DEFAULT_STAGE_CONFIG: StageConfig = {
     apiKey: "",
     model: "gpt-oss-120b",
     reasoningEffort: "low",
-    maxInputTokens: 24000,
-    maxFiles: 32,
-    maxTokensPerFile: 4000,
+    maxInputTokens: 48000,
   },
 }
 

@@ -22,11 +22,10 @@ AI overrides (optional):
   --model <name>
   --reasoning-effort <low|medium|high>
   --max-input-tokens <int>
-  --max-files <int>
-  --max-tokens-per-file <int>
 
 Output:
   --json                      Emit machine-readable JSON.
+  --verbose, -v               Print context budgeting diagnostics.
   --keep-worktrees            Keep temp worktrees used for commit replay.
   --help                      Show this help.
 `.trim()
@@ -36,6 +35,7 @@ export function parseArgs(args: string[]): CliOptions {
     commits: [],
     paths: [],
     json: false,
+    verbose: false,
     keepWorktrees: false,
   }
 
@@ -81,22 +81,12 @@ export function parseArgs(args: string[]): CliOptions {
       )
       continue
     }
-    if (arg === "--max-files") {
-      options.maxFiles = parsePositiveInteger(
-        requireValue(args, ++index, "--max-files"),
-        "--max-files",
-      )
-      continue
-    }
-    if (arg === "--max-tokens-per-file") {
-      options.maxTokensPerFile = parsePositiveInteger(
-        requireValue(args, ++index, "--max-tokens-per-file"),
-        "--max-tokens-per-file",
-      )
-      continue
-    }
     if (arg === "--json") {
       options.json = true
+      continue
+    }
+    if (arg === "--verbose" || arg === "-v") {
+      options.verbose = true
       continue
     }
     if (arg === "--keep-worktrees") {

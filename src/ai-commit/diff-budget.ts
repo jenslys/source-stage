@@ -39,13 +39,11 @@ export function buildDiffSectionWithBudget({
   snippets,
   preambleLines,
   maxInputTokens,
-  maxTokensPerFile,
   tokenizer,
 }: {
   snippets: Array<{ path: string; body: string }>
   preambleLines: string[]
   maxInputTokens: number
-  maxTokensPerFile: number
   tokenizer: TextTokenizer
 }): string {
   const fallback = "- no diff snippets were captured"
@@ -59,7 +57,7 @@ export function buildDiffSectionWithBudget({
     .filter((snippet) => snippet.body)
     .map((snippet) => {
       const header = `FILE: ${snippet.path}\n`
-      const body = truncateToTokenBudget(snippet.body, Math.max(maxTokensPerFile, 1), tokenizer)
+      const body = snippet.body
       return {
         header,
         body,
